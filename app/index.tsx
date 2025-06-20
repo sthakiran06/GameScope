@@ -1,13 +1,36 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Link } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
+  const [validEmail, setValidEmail] = useState<boolean>(false);
+const [validPassword, setValidPassword] = useState<boolean>(false);
+
+
+   useEffect(() => {
+    if (email.indexOf('@') > 0) {
+      console.log('Valid email');
+    
+    } else {
+      console.log('Invalid email');
+    }
+  }, [email]);
+
+  useEffect(() => {
+  if (password.length >= 8) {
+    console.log(' Valid password');
+  } else {
+    console.log('Password too short');
+  }
+}, [password]);
+
+  
   const handleSignUp = () => {
     console.log('Sign-Up Pressed!');
     console.log('Email:', email);
@@ -26,7 +49,7 @@ export default function SignUpScreen() {
           placeholder="you@example.com"
           placeholderTextColor="#888"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(val) => setEmail(val) }
           keyboardType="email-address"
         />
 
@@ -43,9 +66,6 @@ export default function SignUpScreen() {
           <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
         </Pressable>
 
-        <Link href="/(tabs)">
-          <ThemedText style={styles.link}>Go to Home</ThemedText>
-        </Link>
       </View>
     </ThemedView>
   );
