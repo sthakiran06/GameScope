@@ -10,10 +10,10 @@ export function useUser() {
   return useContext(UserContext);
 }
 
-export function UserProvider(props: any) {
+export function UserProvider(props) {
   const [user, setUser] = useState<null | any>(null);
 
-  async function login(email : string, password : string) {
+  async function login(email , password ) {
     const loggedIn = await account.createEmailPasswordSession(email, password);
     setUser(loggedIn);
     // toast('Welcome back. You are logged in');
@@ -25,7 +25,7 @@ export function UserProvider(props: any) {
     //toast('Logged out');
   }
 
-  async function register(email : string, password : string) {
+  async function register(email , password ) {
     await account.create(ID.unique(), email, password);
     await login(email, password);
     //toast('Account created');
