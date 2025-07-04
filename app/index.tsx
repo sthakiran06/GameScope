@@ -1,12 +1,14 @@
-import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native'
-import { ThemedView } from '@/components/ThemedView'
 import { ThemedText } from '@/components/ThemedText'
-import { useState, useEffect, useContext } from 'react'
+import { ThemedView } from '@/components/ThemedView'
 import { ValidIndicator } from '@/components/ui/ValidIndicator'
+import { useContext, useEffect, useState } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 //import { useUser } from '@/hooks/userContext'
-import { router } from 'expo-router'
 import { AuthContext } from '@/contexts/AuthContext'
+import { router } from 'expo-router'
 import { ID } from 'react-native-appwrite'
+
+// BIPIN   SDKJDK
 
 export default function SignUp(props: any) {
     const [email, setEmail] = useState<string>('')
