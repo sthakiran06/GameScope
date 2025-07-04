@@ -3,6 +3,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { Link } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ValidIndicator } from '@/components/ui/ValidIndicator';
+
 
 
 export default function SignUpScreen() {
@@ -13,21 +15,13 @@ export default function SignUpScreen() {
 const [validPassword, setValidPassword] = useState<boolean>(false);
 
 
-   useEffect(() => {
-    if (email.indexOf('@') > 0) {
-      console.log('Valid email');
-    
-    } else {
-      console.log('Invalid email');
-    }
-  }, [email]);
 
   useEffect(() => {
-  if (password.length >= 8) {
-    console.log(' Valid password');
-  } else {
-    console.log('Password too short');
-  }
+  setValidEmail(email.includes('@'));
+}, [email]);
+
+useEffect(() => {
+  setValidPassword(password.length >= 8);
 }, [password]);
 
   
@@ -44,27 +38,43 @@ const [validPassword, setValidPassword] = useState<boolean>(false);
         <ThemedText style={styles.title}>Sign Up</ThemedText>
 
         <ThemedText>Email</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="you@example.com"
-          placeholderTextColor="#888"
-          value={email}
-          onChangeText={(val) => setEmail(val) }
-          keyboardType="email-address"
-        />
+<View style={styles.inputWrapper}>
+  <TextInput
+    style={styles.inputField}
+    placeholder="you@example.com"
+    placeholderTextColor="#888"
+    value={email}
+    onChangeText={setEmail}
+    keyboardType="email-address"
+  />
+  <ValidIndicator isValid={validEmail} />
+</View>
 
-        <ThemedText>Password</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="Minimum 8 characters"
-          placeholderTextColor="#888"
-          value={password}
-          onChangeText={setPassword}
-        />
+<ThemedText>Password</ThemedText>
+<View style={styles.inputWrapper}>
+  <TextInput
+    style={styles.inputField}
+    placeholder="Minimum 8 characters"
+    placeholderTextColor="#888"
+    value={password}
+    onChangeText={setPassword}
+    secureTextEntry
+  />
+  <ValidIndicator isValid={validPassword} />
+</View>
 
-        <Pressable style={styles.button} onPress={handleSignUp}>
-          <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
-        </Pressable>
+
+        <Pressable
+  style={[
+    styles.button,
+    !(validEmail && validPassword) && styles.buttonDisabled
+  ]}
+  onPress={handleSignUp}
+  disabled={!(validEmail && validPassword)}
+>
+  <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
+</Pressable>
+
 
       </View>
     </ThemedView>
@@ -105,9 +115,30 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+    textAlign: "center",
     fontWeight: 'bold',
     fontSize: 16,
   },
+  buttonDisabled: {
+  backgroundColor: '#aaa', // Lighter color to show it's disabled
+},
+inputWrapper: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 8,
+  backgroundColor: '#fff',
+  paddingHorizontal: 12,
+  marginBottom: 8,
+},
+inputField: {
+  flex: 1,
+  height: 48,
+  color: '#000',
+},
+
+
   link: {
     marginTop: 16,
     textAlign: 'center',
