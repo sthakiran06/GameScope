@@ -1,14 +1,12 @@
+import { Ionicons } from "@expo/vector-icons"
 
-
-import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
-
-export function ValidIndicator({ isValid }: { isValid: boolean }) {
-  return (
-    <Ionicons
-      name={isValid ? 'checkmark-circle' : 'close-circle'}
-      size={24}
-      color={isValid ? 'green' : 'red'}
-    />
-  );
+export function ValidIndicator ( props:any ) {
+    if( props.valid ) {
+        return(
+            <Ionicons name="checkmark" size={18} color="lightgreen" />
+        )
+    }
+    else {
+        return null
+    }
 }

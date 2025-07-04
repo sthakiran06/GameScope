@@ -1,17 +1,16 @@
 import { Client, Databases, Account } from "react-native-appwrite";
-import {
-    EXPO_PUBLIC_APPWRITE_PROJECT_ID,
-    EXPO_PUBLIC_APPWRITE_ENDPOINT
-} from "@/config/Config";
+import { 
+    EXPO_PUBLIC_APPWRITE_ENDPOINT,
+    EXPO_PUBLIC_APPWRITE_PROJECT_ID }
+    from "@/config/Config";
+
 
 const client = new Client();
 client
-  .setEndpoint("https://<REGION>.cloud.appwrite.io/v1")
-  .setProject("<PROJECT_ID>") // Replace with your project ID
-  .setPlatform('com.example.idea-tracker');
+  .setEndpoint(EXPO_PUBLIC_APPWRITE_ENDPOINT)
+  .setProject(EXPO_PUBLIC_APPWRITE_PROJECT_ID) // Replace with your project ID
+  .setPlatform('au.edu.nsw.ait.gamescope');
 
 
 export const account = new Account(client);
 export const databases = new Databases(client);
-
-

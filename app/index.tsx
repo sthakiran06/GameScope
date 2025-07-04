@@ -1,148 +1,154 @@
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { Link } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { ValidIndicator } from '@/components/ui/ValidIndicator';
+import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native'
+import { ThemedView } from '@/components/ThemedView'
+import { ThemedText } from '@/components/ThemedText'
+import { useState, useEffect, useContext } from 'react'
+import { ValidIndicator } from '@/components/ui/ValidIndicator'
+//import { useUser } from '@/hooks/userContext'
+import { router } from 'expo-router'
+import { AuthContext } from '@/contexts/AuthContext'
+import { ID } from 'react-native-appwrite'
 
+export default function SignUp(props: any) {
+    const [email, setEmail] = useState<string>('')
+    const [password, setPassword] = useState<string>('')
+    // email and password validity
+    const [validEmail, setValidEmail] = useState<boolean>(false)
+    const [validPassword, setValidPassword] = useState<boolean>(false)
+    const [auth,setAuth] = useState<null|any>(null)
 
+    const user = useContext(AuthContext)
 
-export default function SignUpScreen() {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+    const register = async () => {
+        // sign up with unique id, email and password
+        await user.create( ID.unique(), email, password )
+        // create a session
+        const session = await user.createEmailPasswordSession(email,password)
+        setAuth(session)
+    }
 
-  const [validEmail, setValidEmail] = useState<boolean>(false);
-const [validPassword, setValidPassword] = useState<boolean>(false);
+    useEffect(() => {
+        if( auth ) {
+            router.navigate("/(tabs)")
+        }
+    }, [auth])
 
+    //const user = useUser()
+    //console.log(user)
+    useEffect(() => {
+        if (email.indexOf('@') > 0) {
+            // console.log('valid email')
+            setValidEmail(true)
+        }
+        else {
+            // console.log('invalid email')
+            setValidEmail(false)
+        }
+    }, [email])
 
+    useEffect(() => {
+        if (password.length >= 8) {
+            // valid password
+            setValidPassword(true)
+        }
+        else {
+            // invalid password
+            setValidPassword(false)
+        }
+    }, [password])
 
-  useEffect(() => {
-  setValidEmail(email.includes('@'));
-}, [email]);
+    useEffect(()=> {
+        console.log(user)
+    },[user])
 
-useEffect(() => {
-  setValidPassword(password.length >= 8);
-}, [password]);
+    return (
+        <ThemedView style={styles.container}>
+            <View style={styles.form}>
+                <Text style={styles.title}>Sign up</Text>
+                <View style={ styles.label }>
+                    <ThemedText>Email</ThemedText>
+                    <ValidIndicator valid={validEmail} />
+                </View>
+                
+                <TextInput
+                    style={styles.input}
+                    placeholder='you@example.com'
+                    onChangeText={(val) => setEmail(val)}
+                    value={email}
+                />
 
-  
-  const handleSignUp = () => {
-    console.log('Sign-Up Pressed!');
-    console.log('Email:', email);
-    console.log('Password:', password);
-    
-  };
+                <View style={ styles.label }>
+                    <ThemedText>Password</ThemedText>
+                    <ValidIndicator valid={validPassword} />
+                </View>
+                <TextInput
+                    style={styles.input}
+                    placeholder='minimum 8 characters'
+                    secureTextEntry={true}
+                    value={password}
+                    onChangeText={(val) => setPassword(val)}
+                />
 
-  return (
-    <ThemedView style={styles.container}>
-      <View style={styles.form}>
-        <ThemedText style={styles.title}>Sign Up</ThemedText>
-
-        <ThemedText>Email</ThemedText>
-<View style={styles.inputWrapper}>
-  <TextInput
-    style={styles.inputField}
-    placeholder="you@example.com"
-    placeholderTextColor="#888"
-    value={email}
-    onChangeText={setEmail}
-    keyboardType="email-address"
-  />
-  <ValidIndicator isValid={validEmail} />
-</View>
-
-<ThemedText>Password</ThemedText>
-<View style={styles.inputWrapper}>
-  <TextInput
-    style={styles.inputField}
-    placeholder="Minimum 8 characters"
-    placeholderTextColor="#888"
-    value={password}
-    onChangeText={setPassword}
-    secureTextEntry
-  />
-  <ValidIndicator isValid={validPassword} />
-</View>
-
-
-        <Pressable
-  style={[
-    styles.button,
-    !(validEmail && validPassword) && styles.buttonDisabled
-  ]}
-  onPress={handleSignUp}
-  disabled={!(validEmail && validPassword)}
->
-  <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
-</Pressable>
-
-
-      </View>
-    </ThemedView>
-  );
+                <Pressable
+                    style={(validEmail && validPassword) ? styles.button : styles.buttondisabled}
+                    disabled={(validEmail && validPassword) ? false : true}
+                    onPress={ () => { 
+                        register()
+                        }}
+                >
+                    <ThemedText
+                        style={(validEmail && validPassword) ? styles.buttonText : styles.buttonTextDisabled}
+                    >
+                        Sign up
+                    </ThemedText>
+                </Pressable>
+            </View>
+        </ThemedView>
+    )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  form: {
-    gap: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: 'green',
-    textAlign: 'center',
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff', 
-    color: '#000',           
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    textAlign: "center",
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  buttonDisabled: {
-  backgroundColor: '#aaa', // Lighter color to show it's disabled
-},
-inputWrapper: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 8,
-  backgroundColor: '#fff',
-  paddingHorizontal: 12,
-  marginBottom: 8,
-},
-inputField: {
-  flex: 1,
-  height: 48,
-  color: '#000',
-},
+    form: {
+        marginHorizontal: 50,
+        padding: 15,
+        marginTop: 100,
+    },
+    input: {
+        backgroundColor: "#dfe7f5",
+        padding: 5,
+        fontSize: 16,
+        marginBottom: 15,
+    },
+    title: {
+        fontSize: 32,
+        textAlign: "center",
+    },
+    container: {
+        flex: 1,
 
-
-  link: {
-    marginTop: 16,
-    textAlign: 'center',
-    color: 'blue',
-    textDecorationLine: 'underline',
-  },
-});
+    },
+    button: {
+        borderStyle: "solid",
+        borderWidth: 2,
+        borderColor: "#dfe7f5",
+        padding: 5,
+        borderRadius: 5,
+    },
+    buttondisabled: {
+        borderStyle: "solid",
+        borderWidth: 2,
+        borderColor: "#45474a",
+        padding: 5,
+        borderRadius: 5,
+    },
+    buttonText: {
+        textAlign: "center",
+    },
+    buttonTextDisabled: {
+        textAlign: "center",
+        color: "#45474a"
+    },
+    label: {
+        flexDirection: "row",
+        justifyContent: "space-between"
+    },
+})
