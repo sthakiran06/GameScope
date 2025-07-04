@@ -84,6 +84,9 @@ export default function SignUp(props: any) {
             Create Account
           </ThemedText>
         </Pressable>
+              <Pressable onPress={() => router.push('/login')}>
+        <ThemedText style={styles.link}>Already have an account? Login</ThemedText>
+      </Pressable>
       </View>
     </ThemedView>
   );
@@ -157,5 +160,12 @@ const styles = StyleSheet.create({
     color: '#555',
     fontWeight: '500',
     fontSize: 16,
+  },
+  link: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#1e90ff',
+    fontWeight: '500',
+    marginTop: 10,
   },
 });
