@@ -1,78 +1,42 @@
-import { useState } from 'react';
+import { databases } from '@/lib/appwrite';
 import { Picker } from '@react-native-picker/picker';
+import { useEffect, useState } from 'react';
 import {
   Dimensions,
   FlatList,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
-const categories = ['All', 'Action', 'RPG', 'Shooter', 'Adventure'];
+const DATABASE_ID = '6872ea7d003af1fd5568';
+const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
 
-const games = [
-  {
-    id: '1',
-    title: 'Elden Ring',
-    category: 'RPG',
-    platform: 'PC, PS5, Xbox',
-    releaseDate: '2022-02-25',
-    summary: 'An open-world action RPG set in a dark fantasy realm.',
-    rating: 4.8,
-    image: 'https://upload.wikimedia.org/wikipedia/en/b/b9/Elden_Ring_Box_art.jpg',
-  },
-  {
-    id: '2',
-    title: 'God of War: Ragnarok',
-    category: 'Action',
-    platform: 'PS5',
-    releaseDate: '2022-11-09',
-    summary: 'Kratos and Atreus journey through Norse myth in a stunning sequel.',
-    rating: 4.9,
-    image: 'https://upload.wikimedia.org/wikipedia/en/b/bb/God_of_War_Ragnar%C3%B6k_cover.jpg',
-  },
-  {
-    id: '3',
-    title: 'Call of Duty: MW II',
-    category: 'Shooter',
-    platform: 'PC, PS5, Xbox',
-    releaseDate: '2022-10-28',
-    summary: 'Fast-paced multiplayer and cinematic single-player shooter.',
-    rating: 4.3,
-    image: 'https://upload.wikimedia.org/wikipedia/en/4/41/Call_of_Duty_Modern_Warfare_II_cover.jpg',
-  },
-  {
-    id: '4',
-    title: 'Zelda: TOTK',
-    category: 'Adventure',
-    platform: 'Switch',
-    releaseDate: '2023-05-12',
-    summary: 'Explore vast lands and uncover the secrets of Hyrule.',
-    rating: 4.7,
-    image: 'https://upload.wikimedia.org/wikipedia/en/2/2e/The_Legend_of_Zelda_Tears_of_the_Kingdom_box_art.jpg',
-  },
-  {
-    id: '5',
-    title: 'Spider-Man 2',
-    category: 'Action',
-    platform: 'PS5',
-    releaseDate: '2023-10-20',
-    summary: 'Swing through NYC as Peter and Miles in this superhero adventure.',
-    rating: 4.6,
-    image: 'https://upload.wikimedia.org/wikipedia/en/2/2e/Spider-Man_2_PS5_cover.png',
-  },
-];
+const categories = ['All', 'Action', 'RPG', 'Shooter', 'Adventure'];
 
 const screenWidth = Dimensions.get('window').width;
 const cardWidth = (screenWidth - 64) / 3;
 
 export default function HomeScreen() {
+  const [games, setGames] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const fetchGames = async () => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, GAMES_COLLECTION_ID);
+      setGames(res.documents);
+      console.log('✅ Games fetched:', res.documents);
+    } catch (err) {
+      console.error('❌ Error fetching games:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGames();
+  }, []);
 
   const filteredGames = games.filter((game) => {
     const matchesCategory = selectedCategory === 'All' || game.category === selectedCategory;
@@ -115,7 +79,7 @@ export default function HomeScreen() {
       {/* Game Grid */}
       <FlatList
         data={filteredGames}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.$id || item.id}
         numColumns={3}
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
@@ -126,7 +90,6 @@ export default function HomeScreen() {
               <Text style={styles.cardInfo}>Genre: {item.category}</Text>
               <Text style={styles.cardInfo}>Platform: {item.platform}</Text>
               <Text style={styles.cardInfo}>Release: {item.releaseDate}</Text>
-              <Text style={styles.cardRating}>Rating: {renderStars(item.rating)} ({item.rating})</Text>
               <Text style={styles.cardSummary}>{item.summary.slice(0, 80)}...</Text>
             </View>
           </View>
@@ -136,16 +99,7 @@ export default function HomeScreen() {
   );
 }
 
-function renderStars(rating: number) {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating % 1 >= 0.5;
-  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-  return (
-    '★'.repeat(fullStars) +
-    (halfStar ? '½' : '') +
-    '☆'.repeat(emptyStars)
-  );
-}
+
 
 const styles = StyleSheet.create({
   container: {
@@ -171,30 +125,6 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     marginVertical: 8,
-  },
-  categories: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    gap: 8,
-  },
-  categoryButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#eee',
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  categoryButtonActive: {
-    backgroundColor: '#1e90ff',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
   },
   grid: {
     paddingBottom: 100,

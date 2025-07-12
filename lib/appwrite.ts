@@ -8,7 +8,7 @@ import {
 const client = new Client();
 client
   .setEndpoint(EXPO_PUBLIC_APPWRITE_ENDPOINT)
-  .setProject(EXPO_PUBLIC_APPWRITE_PROJECT_ID) // Replace with your project ID
+  .setProject(EXPO_PUBLIC_APPWRITE_PROJECT_ID) 
   .setPlatform('au.edu.nsw.ait.gamescope');
 
 
