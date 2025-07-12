@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Picker } from '@react-native-picker/picker';
 import {
   Dimensions,
   FlatList,
@@ -18,96 +19,58 @@ const games = [
     id: '1',
     title: 'Elden Ring',
     category: 'RPG',
+    platform: 'PC, PS5, Xbox',
+    releaseDate: '2022-02-25',
+    summary: 'An open-world action RPG set in a dark fantasy realm.',
+    rating: 4.8,
     image: 'https://upload.wikimedia.org/wikipedia/en/b/b9/Elden_Ring_Box_art.jpg',
   },
   {
     id: '2',
     title: 'God of War: Ragnarok',
     category: 'Action',
+    platform: 'PS5',
+    releaseDate: '2022-11-09',
+    summary: 'Kratos and Atreus journey through Norse myth in a stunning sequel.',
+    rating: 4.9,
     image: 'https://upload.wikimedia.org/wikipedia/en/b/bb/God_of_War_Ragnar%C3%B6k_cover.jpg',
   },
   {
     id: '3',
     title: 'Call of Duty: MW II',
     category: 'Shooter',
+    platform: 'PC, PS5, Xbox',
+    releaseDate: '2022-10-28',
+    summary: 'Fast-paced multiplayer and cinematic single-player shooter.',
+    rating: 4.3,
     image: 'https://upload.wikimedia.org/wikipedia/en/4/41/Call_of_Duty_Modern_Warfare_II_cover.jpg',
   },
   {
     id: '4',
     title: 'Zelda: TOTK',
     category: 'Adventure',
+    platform: 'Switch',
+    releaseDate: '2023-05-12',
+    summary: 'Explore vast lands and uncover the secrets of Hyrule.',
+    rating: 4.7,
     image: 'https://upload.wikimedia.org/wikipedia/en/2/2e/The_Legend_of_Zelda_Tears_of_the_Kingdom_box_art.jpg',
   },
   {
     id: '5',
-    title: 'Hades II',
-    category: 'RPG',
-    image: 'https://upload.wikimedia.org/wikipedia/en/b/b9/Hades_II_boxart.jpg',
-  },
-  {
-    id: '6',
     title: 'Spider-Man 2',
     category: 'Action',
+    platform: 'PS5',
+    releaseDate: '2023-10-20',
+    summary: 'Swing through NYC as Peter and Miles in this superhero adventure.',
+    rating: 4.6,
     image: 'https://upload.wikimedia.org/wikipedia/en/2/2e/Spider-Man_2_PS5_cover.png',
-  },
-  {
-    id: '7',
-    title: 'Starfield',
-    category: 'RPG',
-    image: 'https://upload.wikimedia.org/wikipedia/en/6/6c/Starfield_cover.jpg',
-  },
-  {
-    id: '8',
-    title: 'Resident Evil 4',
-    category: 'Shooter',
-    image: 'https://upload.wikimedia.org/wikipedia/en/e/e5/Resident_Evil_4_remake_cover_art.jpg',
-  },
-  {
-    id: '9',
-    title: 'Hollow Knight',
-    category: 'Adventure',
-    image: 'https://upload.wikimedia.org/wikipedia/en/b/bd/Hollow_Knight_cover.jpg',
-  },
-  {
-    id: '10',
-    title: 'Cyberpunk 2077',
-    category: 'Shooter',
-    image: 'https://upload.wikimedia.org/wikipedia/en/9/9f/Cyberpunk_2077_box_art.jpg',
-  },
-  {
-    id: '11',
-    title: 'Stray',
-    category: 'Adventure',
-    image: 'https://upload.wikimedia.org/wikipedia/en/5/5e/Stray_cover_art.jpg',
-  },
-  {
-    id: '12',
-    title: 'Sea of Stars',
-    category: 'RPG',
-    image: 'https://upload.wikimedia.org/wikipedia/en/e/e5/Sea_of_Stars_cover.jpg',
-  },
-  {
-    id: '13',
-    title: 'Hi-Fi Rush',
-    category: 'Action',
-    image: 'https://upload.wikimedia.org/wikipedia/en/4/45/Hi-Fi_Rush_cover_art.jpg',
-  },
-  {
-    id: '14',
-    title: 'Alan Wake II',
-    category: 'Adventure',
-    image: 'https://upload.wikimedia.org/wikipedia/en/e/e3/Alan_Wake_II_cover.jpg',
-  },
-  {
-    id: '15',
-    title: 'Ghost of Tsushima',
-    category: 'Action',
-    image: 'https://upload.wikimedia.org/wikipedia/en/a/a3/Ghost_of_Tsushima.jpg',
   },
 ];
 
+const screenWidth = Dimensions.get('window').width;
+const cardWidth = (screenWidth - 64) / 3;
+
 export default function HomeScreen() {
-  console.log('📍 HomeScreen loaded');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -133,30 +96,21 @@ export default function HomeScreen() {
         onChangeText={setSearch}
       />
 
-      {/* Categories */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.categories}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categoryButton,
-                selectedCategory === cat && styles.categoryButtonActive,
-              ]}
-              onPress={() => setSelectedCategory(cat)}
-            >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === cat && styles.categoryTextActive,
-                ]}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Category Dropdown */}
+      <View style={styles.dropdownContainer}>
+        <Text style={styles.dropdownLabel}>Filter by Genre:</Text>
+        <View style={styles.dropdownWrapper}>
+          <Picker
+            selectedValue={selectedCategory}
+            onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+            style={styles.picker}
+          >
+            {categories.map((cat) => (
+              <Picker.Item key={cat} label={cat} value={cat} />
+            ))}
+          </Picker>
         </View>
-      </ScrollView>
+      </View>
 
       {/* Game Grid */}
       <FlatList
@@ -167,7 +121,14 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Image source={{ uri: item.image }} style={styles.cardImage} />
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.cardInfo}>Genre: {item.category}</Text>
+              <Text style={styles.cardInfo}>Platform: {item.platform}</Text>
+              <Text style={styles.cardInfo}>Release: {item.releaseDate}</Text>
+              <Text style={styles.cardRating}>Rating: {renderStars(item.rating)} ({item.rating})</Text>
+              <Text style={styles.cardSummary}>{item.summary.slice(0, 80)}...</Text>
+            </View>
           </View>
         )}
       />
@@ -175,8 +136,16 @@ export default function HomeScreen() {
   );
 }
 
-const screenWidth = Dimensions.get('window').width;
-const cardWidth = (screenWidth - 64) / 3; // 16 padding on each side + 8 gap * 2
+function renderStars(rating: number) {
+  const fullStars = Math.floor(rating);
+  const halfStar = rating % 1 >= 0.5;
+  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+  return (
+    '★'.repeat(fullStars) +
+    (halfStar ? '½' : '') +
+    '☆'.repeat(emptyStars)
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -188,22 +157,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingTop: 50,
     paddingBottom: 12,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   logo: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e90ff',
-  },
-  nav: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  navText: {
-    fontSize: 14,
-    color: '#1e90ff',
-    fontWeight: '500',
   },
   searchBar: {
     backgroundColor: '#f1f1f1',
@@ -223,6 +183,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#eee',
     borderRadius: 20,
+    marginRight: 8,
   },
   categoryButtonActive: {
     backgroundColor: '#1e90ff',
@@ -246,22 +207,54 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 16,
     marginHorizontal: 4,
-    elevation: 4,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
   },
   cardImage: {
     width: '100%',
     height: cardWidth,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+  },
+  cardBody: {
+    padding: 8,
   },
   cardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  cardInfo: {
     fontSize: 12,
-    fontWeight: '500',
-    padding: 8,
-    textAlign: 'center',
+    color: '#666',
+  },
+  cardRating: {
+    fontSize: 12,
+    color: '#ff9800',
+    marginTop: 4,
+  },
+  cardSummary: {
+    fontSize: 12,
+    color: '#333',
+    marginTop: 6,
+  },
+  dropdownContainer: {
+    marginBottom: 12,
+  },
+  dropdownLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  dropdownWrapper: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 44,
+    width: '100%',
   },
 });
