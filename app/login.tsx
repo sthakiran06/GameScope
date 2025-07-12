@@ -1,9 +1,9 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { account } from '@/lib/appwrite';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, Text, View } from 'react-native';
-import { account } from '@/lib/appwrite';
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -11,10 +11,23 @@ export default function LoginScreen() {
 
   const login = async () => {
     try {
-      await account.createEmailPasswordSession(email, password);
-      router.replace('/(tabs)'); // go to home
+      console.log('Attempting login with:', email);
+  
+      // Force logout if already logged in
+      try {
+        await account.deleteSession('current');
+        console.log('✅ Existing session cleared');
+      } catch (e) {
+        console.log('ℹ️ No active session to delete');
+      }
+  
+      // Now create a new session
+      const session = await account.createEmailPasswordSession(email, password);
+      console.log('✅ Login success:', session);
+      router.replace('/(tabs)');
     } catch (err: any) {
       console.error('❌ Login failed:', err.message || err);
+      alert(err.message || 'Login error');
     }
   };
 
