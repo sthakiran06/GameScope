@@ -19,15 +19,38 @@ const categories = ['All', 'Action', 'RPG', 'Shooter', 'Adventure'];
 const screenWidth = Dimensions.get('window').width;
 const cardWidth = (screenWidth - 64) / 3;
 
+type Game = {
+  $id: string;
+  title: string;
+  category: string;
+  platform: string;
+  releaseDate: string;
+  summary: string;
+  image: string;
+};
+
 export default function HomeScreen() {
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState<Game[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+
+  function parseGame(doc: any): Game {
+    return {
+      $id: doc.$id,
+      title: doc.title,
+      category: doc.category,
+      platform: doc.platform,
+      releaseDate: doc.releaseDate,
+      summary: doc.summary,
+      image: doc.image,
+    };
+  }
 
   const fetchGames = async () => {
     try {
       const res = await databases.listDocuments(DATABASE_ID, GAMES_COLLECTION_ID);
-      setGames(res.documents);
+      setGames(res.documents.map(parseGame));
       console.log('✅ Games fetched:', res.documents);
     } catch (err) {
       console.error('❌ Error fetching games:', err);
@@ -79,7 +102,7 @@ export default function HomeScreen() {
       {/* Game Grid */}
       <FlatList
         data={filteredGames}
-        keyExtractor={(item) => item.$id || item.id}
+      keyExtractor={(item) => item.$id}
         numColumns={3}
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
@@ -98,8 +121,6 @@ export default function HomeScreen() {
     </View>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -145,7 +166,12 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: cardWidth,
+    height: 140,
+    resizeMode: 'contain',
+    backgroundColor: '#f1f1f1',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
   },
   cardBody: {
     padding: 8,
