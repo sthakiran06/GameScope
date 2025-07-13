@@ -1,6 +1,9 @@
 import { databases } from '@/lib/appwrite';
 import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
+import { TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+
 import {
   Dimensions,
   FlatList,
@@ -106,16 +109,23 @@ export default function HomeScreen() {
         numColumns={3}
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              console.log('✅ Tapped game ID:', item.$id);
+              router.push({ pathname: '/game/[id]', params: { id: item.$id } });
+            }}
+            style={styles.card} // move card style here
+          >
             <Image source={{ uri: item.image }} style={styles.cardImage} />
             <View style={styles.cardBody}>
-              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardInfo}>Genre: {item.category}</Text>
               <Text style={styles.cardInfo}>Platform: {item.platform}</Text>
               <Text style={styles.cardInfo}>Release: {item.releaseDate}</Text>
               <Text style={styles.cardSummary}>{item.summary.slice(0, 80)}...</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>
@@ -166,12 +176,10 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 140,
-    resizeMode: 'contain',
-    backgroundColor: '#f1f1f1',
+    aspectRatio: 1.6, // Try 1.5–1.8 based on your layout
+    resizeMode: 'cover',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    overflow: 'hidden',
   },
   cardBody: {
     padding: 8,

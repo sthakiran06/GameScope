@@ -8,9 +8,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 // authentication context
 import { AuthContext } from '@/contexts/AuthContext';
 import { account } from '@/lib/appwrite';
-import { useState } from 'react'
 
 export default function RootLayout() {
+  
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -24,11 +24,12 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthContext.Provider value={account}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
+      <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="game/[id]" options={{ title: 'Game Details' }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
         <StatusBar style="auto" />
       </AuthContext.Provider>
     </ThemeProvider>
