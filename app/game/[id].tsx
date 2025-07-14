@@ -1,21 +1,24 @@
-import { databases } from '@/lib/appwrite';
+import { account, databases } from '@/lib/appwrite';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  Image, Platform, SafeAreaView,
+  Image,
+  Platform,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { ID, Query } from 'react-native-appwrite';
 
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
-const REVIEWS_COLLECTION_ID = 'your_reviews_collection_id_here'; // Replace this when ready
+const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
 
 export default function GameDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -30,11 +33,7 @@ export default function GameDetailScreen() {
       setGame(res);
       console.log('🖼 Game image URL:', res.image);
     } catch (err) {
-      if (err instanceof Error) {
-        console.error('❌ Error fetching game:', err.message);
-      } else {
-        console.error('❌ Unknown error:', err);
-      }
+      console.error('❌ Error fetching game:', err);
     } finally {
       setLoading(false);
     }
@@ -42,9 +41,11 @@ export default function GameDetailScreen() {
 
   const fetchReviews = async () => {
     try {
-      const res = await databases.listDocuments(DATABASE_ID, REVIEWS_COLLECTION_ID, [
-        // Add filters when collection is ready
-      ]);
+      const res = await databases.listDocuments(
+        DATABASE_ID,
+        REVIEWS_COLLECTION_ID,
+        [Query.equal('gameId', id), Query.orderDesc('timestamp')]
+      );
       setReviews(res.documents);
     } catch (err) {
       console.error('❌ Error fetching reviews:', err);
@@ -54,11 +55,19 @@ export default function GameDetailScreen() {
   const submitReview = async () => {
     if (!newReview.trim()) return;
     try {
-      const res = await databases.createDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, 'unique()', {
-        gameId: id,
-        content: newReview,
-        timestamp: new Date().toISOString(),
-      });
+      const user = await account.get();
+      const res = await databases.createDocument(
+        DATABASE_ID,
+        REVIEWS_COLLECTION_ID,
+        ID.unique(),
+        {
+          gameId: id,
+          userId: user.$id,
+          userName: user.name,
+          content: newReview.trim(),
+          timestamp: new Date().toISOString(),
+        }
+      );
       setReviews((prev) => [res, ...prev]);
       setNewReview('');
     } catch (err) {
@@ -95,10 +104,10 @@ export default function GameDetailScreen() {
         <View style={styles.bannerWrapper}>
           {game.image ? (
             <Image
-            source={{ uri: game.image }}
-            style={styles.banner}
-            resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
-          />
+              source={{ uri: game.image }}
+              style={styles.banner}
+              resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
+            />
           ) : (
             <Text style={{ color: 'red', padding: 20 }}>⚠️ No image available</Text>
           )}
@@ -119,6 +128,7 @@ export default function GameDetailScreen() {
           ) : (
             reviews.map((review, index) => (
               <View key={index} style={styles.reviewBox}>
+                <Text style={styles.reviewMeta}>By {review.userName || 'Anonymous'} • {new Date(review.timestamp).toLocaleString()}</Text>
                 <Text style={styles.reviewText}>{review.content}</Text>
               </View>
             ))
@@ -160,11 +170,11 @@ const styles = StyleSheet.create({
   },
   banner: {
     width: '100%',
-    height: Platform.OS === 'web' ? 380 : 240, // Bigger height for web
+    height: Platform.OS === 'web' ? 380 : 240,
     borderRadius: 12,
-    backgroundColor: '#fffi',
+    backgroundColor: '#fff',
     resizeMode: 'cover',
-    maxWidth: Platform.OS === 'web' ? 1000 : '100%', // Widen container on desktop
+    maxWidth: Platform.OS === 'web' ? 1000 : '100%',
     alignSelf: 'center',
   },
   details: {
@@ -205,6 +215,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
+  },
+  reviewMeta: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 4,
   },
   reviewText: {
     fontSize: 14,

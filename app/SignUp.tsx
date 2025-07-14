@@ -8,6 +8,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ID } from 'react-native-appwrite';
 
 export default function SignUp(props: any) {
+  const [name, setName] = useState<string>(''); // Added name
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [validEmail, setValidEmail] = useState<boolean>(false);
@@ -17,9 +18,13 @@ export default function SignUp(props: any) {
   const user = useContext(AuthContext);
 
   const register = async () => {
-    await user.create(ID.unique(), email, password);
-    const session = await user.createEmailPasswordSession(email, password);
-    setAuth(session);
+    try {
+      await user.create(ID.unique(), email, password, name); // Now includes name
+      const session = await user.createEmailPasswordSession(email, password);
+      setAuth(session);
+    } catch (err) {
+      console.error('❌ Registration failed:', err);
+    }
   };
 
   useEffect(() => {
@@ -45,6 +50,18 @@ export default function SignUp(props: any) {
       <View style={styles.form}>
         <Text style={styles.appName}>🎮 GameScope</Text>
         <Text style={styles.title}>Sign Up</Text>
+
+        {/* Name Input */}
+        <View style={styles.label}>
+          <ThemedText>Name</ThemedText>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Your full name"
+          onChangeText={setName}
+          value={name}
+          placeholderTextColor="#888"
+        />
 
         <View style={styles.label}>
           <ThemedText>Email</ThemedText>
@@ -74,19 +91,20 @@ export default function SignUp(props: any) {
         />
 
         <Pressable
-          style={(validEmail && validPassword) ? styles.button : styles.buttonDisabled}
+          style={validEmail && validPassword ? styles.button : styles.buttonDisabled}
           disabled={!(validEmail && validPassword)}
           onPress={register}
         >
           <ThemedText
-            style={(validEmail && validPassword) ? styles.buttonText : styles.buttonTextDisabled}
+            style={validEmail && validPassword ? styles.buttonText : styles.buttonTextDisabled}
           >
             Create Account
           </ThemedText>
         </Pressable>
-              <Pressable onPress={() => router.push('/login')}>
-        <ThemedText style={styles.link}>Already have an account? Login</ThemedText>
-      </Pressable>
+
+        <Pressable onPress={() => router.push('/login')}>
+          <ThemedText style={styles.link}>Already have an account? Login</ThemedText>
+        </Pressable>
       </View>
     </ThemedView>
   );
