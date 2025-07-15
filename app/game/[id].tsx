@@ -19,6 +19,7 @@ import { ID, Query } from 'react-native-appwrite';
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
 const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
+const FAVORITES_COLLECTION_ID = '6874fecd0002abec583d';
 
 export default function GameDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -26,6 +27,7 @@ export default function GameDetailScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [newReview, setNewReview] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   const fetchGame = async () => {
     try {
@@ -75,10 +77,49 @@ export default function GameDetailScreen() {
     }
   };
 
+  const checkIfFavorite = async () => {
+    try {
+      const user = await account.get();
+      const res = await databases.listDocuments(DATABASE_ID, FAVORITES_COLLECTION_ID, [
+        Query.equal('userId', user.$id),
+        Query.equal('gameId', id),
+      ]);
+      setIsFavorite(res.documents.length > 0);
+    } catch (err) {
+      console.error('❌ Failed to check favorite:', err);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    try {
+      const user = await account.get();
+      if (isFavorite) {
+        const res = await databases.listDocuments(DATABASE_ID, FAVORITES_COLLECTION_ID, [
+          Query.equal('userId', user.$id),
+          Query.equal('gameId', id),
+        ]);
+        if (res.documents.length > 0) {
+          await databases.deleteDocument(DATABASE_ID, FAVORITES_COLLECTION_ID, res.documents[0].$id);
+        }
+      } else {
+        await databases.createDocument(DATABASE_ID, FAVORITES_COLLECTION_ID, ID.unique(), {
+          userId: user.$id,
+          gameId: id,
+          gameTitle: game.title,
+          gameImage: game.image,
+        });
+      }
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      console.error('❌ Failed to toggle favorite:', err);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
     fetchGame();
     fetchReviews();
+    checkIfFavorite();
   }, [id]);
 
   if (loading) {
@@ -101,27 +142,30 @@ export default function GameDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.bannerWrapper}>
-          {game.image ? (
-            <Image
-              source={{ uri: game.image }}
-              style={styles.banner}
-              resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
-            />
-          ) : (
-            <Text style={{ color: 'red', padding: 20 }}>⚠️ No image available</Text>
-          )}
+        <View style={styles.cardWrapper}>
+          <Image
+            source={{ uri: game.image }}
+            style={styles.banner}
+            resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
+          />
         </View>
 
-        <View style={styles.details}>
+        <View style={styles.sectionBox}>
           <Text style={styles.title}>{game.title}</Text>
           <Text style={styles.info}>🎮 Genre: <Text style={styles.bold}>{game.category}</Text></Text>
           <Text style={styles.info}>🖥️ Platform: <Text style={styles.bold}>{game.platform}</Text></Text>
           <Text style={styles.info}>📅 Release Date: <Text style={styles.bold}>{game.releaseDate}</Text></Text>
+          <TouchableOpacity style={styles.button} onPress={toggleFavorite}>
+            <Text style={styles.buttonText}>{isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</Text>
+          </TouchableOpacity>
+        </View>
 
+        <View style={styles.sectionBox}>
           <Text style={styles.sectionTitle}>📝 Summary</Text>
           <Text style={styles.summary}>{game.summary}</Text>
+        </View>
 
+        <View style={styles.sectionBox}>
           <Text style={styles.sectionTitle}>💬 User Reviews</Text>
           {reviews.length === 0 ? (
             <Text style={styles.info}>No reviews yet. Be the first to leave one!</Text>
@@ -133,7 +177,9 @@ export default function GameDetailScreen() {
               </View>
             ))
           )}
+        </View>
 
+        <View style={styles.sectionBox}>
           <Text style={styles.sectionTitle}>✍️ Leave a Review</Text>
           <TextInput
             style={styles.input}
@@ -159,27 +205,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   container: {
-    backgroundColor: '#fff',
-    alignItems: 'center',
+    backgroundColor: '#f0f2f5',
     paddingBottom: 40,
+    paddingTop: 8,
   },
-  bannerWrapper: {
+  cardWrapper: {
     paddingHorizontal: 16,
     paddingTop: 16,
     width: '100%',
+    alignItems: 'center',
   },
   banner: {
     width: '100%',
     height: Platform.OS === 'web' ? 380 : 240,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    resizeMode: 'cover',
+    borderRadius: 16,
+    backgroundColor: '#eee',
     maxWidth: Platform.OS === 'web' ? 1000 : '100%',
-    alignSelf: 'center',
   },
-  details: {
-    padding: 20,
-    width: '100%',
+  sectionBox: {
+    marginTop: 20,
+    marginHorizontal: 16,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 4,
   },
   title: {
     fontSize: 28,
@@ -200,7 +253,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 20,
     marginBottom: 6,
     color: '#333',
   },
@@ -211,10 +263,12 @@ const styles = StyleSheet.create({
     textAlign: 'justify',
   },
   reviewBox: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f9f9f9',
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   reviewMeta: {
     fontSize: 12,
@@ -234,12 +288,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     minHeight: 80,
     textAlignVertical: 'top',
+    backgroundColor: '#fff',
   },
   button: {
     backgroundColor: '#1e90ff',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 12,
   },
   buttonText: {
     color: '#fff',
