@@ -7,51 +7,92 @@ import { useContext, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ID } from 'react-native-appwrite';
 
-export default function SignUp(props: any) {
-  const [name, setName] = useState<string>(''); // Added name
+export default function SignUp() {
+  // Track user inputs for registration
+  const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+
+  // Track validation status for email and password
   const [validEmail, setValidEmail] = useState<boolean>(false);
   const [validPassword, setValidPassword] = useState<boolean>(false);
+
+  // Session state to redirect after signup
   const [auth, setAuth] = useState<null | any>(null);
 
+  // Display error message to user
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Get Auth context methods
   const user = useContext(AuthContext);
 
+  /**
+   * Handle sign up process
+   * - Validates input
+   * - Creates user account with Appwrite
+   * - Signs user in immediately after registration
+   * - Provides robust error handling with specific messages
+   */
   const register = async () => {
+    // Validate name
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
+
     try {
-      await user.create(ID.unique(), email, password, name); // Now includes name
-      const session = await user.createEmailPasswordSession(email, password);
+      // Attempt to register the user
+      await user.create(ID.unique(), email.trim(), password, name.trim());
+
+      // Immediately create session upon successful registration
+      const session = await user.createEmailPasswordSession(email.trim(), password);
       setAuth(session);
-    } catch (err) {
-      console.error('❌ Registration failed:', err);
+      setErrorMessage(null); // Clear any previous error
+    } catch (err: any) {
+      console.error('Registration Error:', err);
+
+      // Handle different Appwrite error messages
+      let message = 'Something went wrong during sign up.';
+      const errorText = err?.message?.toLowerCase();
+
+      if (errorText?.includes('already exists')) {
+        message = 'This email is already registered. Please log in or use a different email.';
+      } else if (errorText?.includes('rate limit')) {
+        message = 'Too many attempts. Please wait a few moments and try again.';
+      } else if (errorText?.includes('invalid email')) {
+        message = 'Please enter a valid email address.';
+      } else if (errorText?.includes('password')) {
+        message = 'Password must be at least 8 characters.';
+      }
+
+      setErrorMessage(message);
     }
   };
 
+  // Automatically navigate to the main app if authenticated
   useEffect(() => {
     if (auth) {
       router.navigate('/(tabs)');
     }
   }, [auth]);
 
+  // Email validation
   useEffect(() => {
-    setValidEmail(email.includes('@'));
+    setValidEmail(email.includes('@') && email.includes('.'));
   }, [email]);
 
+  // Password validation
   useEffect(() => {
     setValidPassword(password.length >= 8);
   }, [password]);
 
-  useEffect(() => {
-    console.log(user);
-  }, [user]);
-
   return (
     <ThemedView style={styles.container}>
       <View style={styles.form}>
-        <Text style={styles.appName}>🎮 GameScope</Text>
+        <Text style={styles.appName}>GameScope</Text>
         <Text style={styles.title}>Sign Up</Text>
 
-        {/* Name Input */}
+        {/* Name input */}
         <View style={styles.label}>
           <ThemedText>Name</ThemedText>
         </View>
@@ -63,6 +104,7 @@ export default function SignUp(props: any) {
           placeholderTextColor="#888"
         />
 
+        {/* Email input with live validation */}
         <View style={styles.label}>
           <ThemedText>Email</ThemedText>
           <ValidIndicator valid={validEmail} />
@@ -77,6 +119,7 @@ export default function SignUp(props: any) {
           autoCapitalize="none"
         />
 
+        {/* Password input with live validation */}
         <View style={styles.label}>
           <ThemedText>Password</ThemedText>
           <ValidIndicator valid={validPassword} />
@@ -84,24 +127,35 @@ export default function SignUp(props: any) {
         <TextInput
           style={styles.input}
           placeholder="Minimum 8 characters"
-          secureTextEntry={true}
-          value={password}
+          secureTextEntry
           onChangeText={setPassword}
+          value={password}
           placeholderTextColor="#888"
         />
 
+        {/* Display error message if any */}
+        {errorMessage && (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        )}
+
+        {/* Sign Up Button (disabled if invalid) */}
         <Pressable
           style={validEmail && validPassword ? styles.button : styles.buttonDisabled}
           disabled={!(validEmail && validPassword)}
           onPress={register}
         >
           <ThemedText
-            style={validEmail && validPassword ? styles.buttonText : styles.buttonTextDisabled}
+            style={
+              validEmail && validPassword
+                ? styles.buttonText
+                : styles.buttonTextDisabled
+            }
           >
             Create Account
           </ThemedText>
         </Pressable>
 
+        {/* Navigate to Login screen */}
         <Pressable onPress={() => router.push('/login')}>
           <ThemedText style={styles.link}>Already have an account? Login</ThemedText>
         </Pressable>
@@ -110,6 +164,7 @@ export default function SignUp(props: any) {
   );
 }
 
+// Style definitions
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -185,5 +240,11 @@ const styles = StyleSheet.create({
     color: '#1e90ff',
     fontWeight: '500',
     marginTop: 10,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
