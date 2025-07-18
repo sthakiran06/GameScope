@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { ID, Query } from 'react-native-appwrite';
 
+// Appwrite database and collection IDs
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
 const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
@@ -23,24 +24,27 @@ const FAVORITES_COLLECTION_ID = '6874fecd0002abec583d';
 
 export default function GameDetailScreen() {
   const { id } = useLocalSearchParams();
+
   const [game, setGame] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [newReview, setNewReview] = useState('');
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
 
+  // Fetch game details by ID
   const fetchGame = async () => {
     try {
       const res = await databases.getDocument(DATABASE_ID, GAMES_COLLECTION_ID, id as string);
       setGame(res);
-      console.log('🖼 Game image URL:', res.image);
     } catch (err) {
-      console.error('❌ Error fetching game:', err);
+      console.error('Error fetching game:', err);
+      setGame(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch all reviews related to the game
   const fetchReviews = async () => {
     try {
       const res = await databases.listDocuments(
@@ -50,12 +54,13 @@ export default function GameDetailScreen() {
       );
       setReviews(res.documents);
     } catch (err) {
-      console.error('❌ Error fetching reviews:', err);
+      console.error('Error fetching reviews:', err);
     }
   };
 
+  // Submit a new review for the game
   const submitReview = async () => {
-    if (!newReview.trim()) return;
+    if (!newReview.trim()) return; // Ignore empty reviews
     try {
       const user = await account.get();
       const res = await databases.createDocument(
@@ -73,10 +78,11 @@ export default function GameDetailScreen() {
       setReviews((prev) => [res, ...prev]);
       setNewReview('');
     } catch (err) {
-      console.error('❌ Failed to submit review:', err);
+      console.error('Failed to submit review:', err);
     }
   };
 
+  // Check whether the game is in the user's favorites list
   const checkIfFavorite = async () => {
     try {
       const user = await account.get();
@@ -86,10 +92,11 @@ export default function GameDetailScreen() {
       ]);
       setIsFavorite(res.documents.length > 0);
     } catch (err) {
-      console.error('❌ Failed to check favorite:', err);
+      console.error('Failed to check favorite:', err);
     }
   };
 
+  // Toggle favorite status (add/remove from favorites)
   const toggleFavorite = async () => {
     try {
       const user = await account.get();
@@ -111,10 +118,11 @@ export default function GameDetailScreen() {
       }
       setIsFavorite(!isFavorite);
     } catch (err) {
-      console.error('❌ Failed to toggle favorite:', err);
+      console.error('Failed to toggle favorite:', err);
     }
   };
 
+  // Fetch data when the component mounts or game ID changes
   useEffect(() => {
     if (!id) return;
     fetchGame();
@@ -122,6 +130,7 @@ export default function GameDetailScreen() {
     checkIfFavorite();
   }, [id]);
 
+  // Loading state view
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -131,6 +140,7 @@ export default function GameDetailScreen() {
     );
   }
 
+  // Fallback if game is not found
   if (!game) {
     return (
       <View style={styles.loadingContainer}>
@@ -152,21 +162,21 @@ export default function GameDetailScreen() {
 
         <View style={styles.sectionBox}>
           <Text style={styles.title}>{game.title}</Text>
-          <Text style={styles.info}>🎮 Genre: <Text style={styles.bold}>{game.category}</Text></Text>
-          <Text style={styles.info}>🖥️ Platform: <Text style={styles.bold}>{game.platform}</Text></Text>
-          <Text style={styles.info}>📅 Release Date: <Text style={styles.bold}>{game.releaseDate}</Text></Text>
+          <Text style={styles.info}>Genre: <Text style={styles.bold}>{game.category}</Text></Text>
+          <Text style={styles.info}>Platform: <Text style={styles.bold}>{game.platform}</Text></Text>
+          <Text style={styles.info}>Release Date: <Text style={styles.bold}>{game.releaseDate}</Text></Text>
           <TouchableOpacity style={styles.button} onPress={toggleFavorite}>
             <Text style={styles.buttonText}>{isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.sectionBox}>
-          <Text style={styles.sectionTitle}>📝 Summary</Text>
+          <Text style={styles.sectionTitle}>Summary</Text>
           <Text style={styles.summary}>{game.summary}</Text>
         </View>
 
         <View style={styles.sectionBox}>
-          <Text style={styles.sectionTitle}>💬 User Reviews</Text>
+          <Text style={styles.sectionTitle}>User Reviews</Text>
           {reviews.length === 0 ? (
             <Text style={styles.info}>No reviews yet. Be the first to leave one!</Text>
           ) : (
@@ -180,7 +190,7 @@ export default function GameDetailScreen() {
         </View>
 
         <View style={styles.sectionBox}>
-          <Text style={styles.sectionTitle}>✍️ Leave a Review</Text>
+          <Text style={styles.sectionTitle}>Leave a Review</Text>
           <TextInput
             style={styles.input}
             placeholder="Write your thoughts..."
@@ -199,6 +209,7 @@ export default function GameDetailScreen() {
 
 const screenWidth = Dimensions.get('window').width;
 
+// Styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
