@@ -6,36 +6,49 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 
 export default function LoginScreen() {
+  // State variables for user input
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Function to handle login
   const login = async () => {
     try {
+      if (!email.trim() || !password.trim()) {
+        alert('Please enter both email and password.');
+        return;
+      }
+
       console.log('Attempting login with:', email);
-  
-      // Force logout if already logged in
+
+      // Attempt to delete any existing session to avoid session conflict
       try {
         await account.deleteSession('current');
-        console.log('✅ Existing session cleared');
+        console.log('Previous session cleared.');
       } catch (e) {
-        console.log('ℹ️ No active session to delete');
+        // Not an error if there is no active session
+        console.log('No existing session to delete.');
       }
-  
-      // Now create a new session
+
+      // Create a new session using email/password
       const session = await account.createEmailPasswordSession(email, password);
-      console.log('✅ Login success:', session);
+      console.log('Login successful:', session);
+
+      // Navigate to the main tab layout on success
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('❌ Login failed:', err.message || err);
-      alert(err.message || 'Login error');
+      // Handle and display any login errors gracefully
+      console.error('Login failed:', err);
+      const message = err?.message || 'An unexpected login error occurred.';
+      alert(message);
     }
   };
 
   return (
     <ThemedView style={styles.container}>
-      <Text style={styles.appName}>🎮 GameScope</Text>
+      <Text style={styles.appName}>GameScope</Text>
       <Text style={styles.title}>Login</Text>
 
+      {/* Email input field */}
       <TextInput
         style={styles.input}
         placeholder="you@example.com"
@@ -45,6 +58,8 @@ export default function LoginScreen() {
         autoCapitalize="none"
         placeholderTextColor="#888"
       />
+
+      {/* Password input field */}
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -54,10 +69,12 @@ export default function LoginScreen() {
         placeholderTextColor="#888"
       />
 
+      {/* Login button */}
       <Pressable style={styles.button} onPress={login}>
         <ThemedText style={styles.buttonText}>Login</ThemedText>
       </Pressable>
 
+      {/* Navigate to sign-up screen */}
       <Pressable onPress={() => router.push('/SignUp')}>
         <ThemedText style={styles.link}>Don't have an account? Sign up</ThemedText>
       </Pressable>
@@ -65,6 +82,7 @@ export default function LoginScreen() {
   );
 }
 
+// Style definitions
 const styles = StyleSheet.create({
   container: {
     flex: 1,
