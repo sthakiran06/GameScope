@@ -1,7 +1,7 @@
 import { databases } from '@/lib/appwrite';
 import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 
 import {
@@ -14,14 +14,18 @@ import {
   View
 } from 'react-native';
 
+// Firestore constants
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
 
+// List of game genres for filtering
 const categories = ['All', 'Action', 'RPG', 'Shooter', 'Adventure'];
 
+// Dynamically calculate card width based on screen width
 const screenWidth = Dimensions.get('window').width;
-const cardWidth = (screenWidth - 64) / 3;
+const cardWidth = (screenWidth - 64) / 3; // 3-column layout with padding
 
+// Type definition for game object
 type Game = {
   $id: string;
   title: string;
@@ -33,11 +37,14 @@ type Game = {
 };
 
 export default function HomeScreen() {
+  // Local state management
   const [games, setGames] = useState<Game[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-
+  /**
+   * Utility to parse Firestore documents into strongly typed Game objects
+   */
   function parseGame(doc: any): Game {
     return {
       $id: doc.$id,
@@ -50,20 +57,31 @@ export default function HomeScreen() {
     };
   }
 
+  /**
+   * Fetch all game documents from the database
+   */
   const fetchGames = async () => {
     try {
       const res = await databases.listDocuments(DATABASE_ID, GAMES_COLLECTION_ID);
       setGames(res.documents.map(parseGame));
-      console.log('✅ Games fetched:', res.documents);
-    } catch (err) {
-      console.error('❌ Error fetching games:', err);
+      console.log(' Games fetched:', res.documents);
+    } catch (err: any) {
+      console.error(' Error fetching games:', err);
+      Alert.alert(
+        'Failed to Load Games',
+        'We were unable to fetch games from the server. Please check your internet connection or try again later.'
+      );
     }
   };
 
+  // Fetch games when screen mounts
   useEffect(() => {
     fetchGames();
   }, []);
 
+  /**
+   * Filter logic based on user-selected category and search input
+   */
   const filteredGames = games.filter((game) => {
     const matchesCategory = selectedCategory === 'All' || game.category === selectedCategory;
     const matchesSearch = game.title.toLowerCase().includes(search.toLowerCase());
@@ -74,10 +92,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>🎮 GameScope</Text>
+        <Text style={styles.logo}>GameScope</Text>
       </View>
 
-      {/* Search Bar */}
+      {/* Search bar for filtering by game title */}
       <TextInput
         style={styles.searchBar}
         placeholder="Search games..."
@@ -86,7 +104,7 @@ export default function HomeScreen() {
         onChangeText={setSearch}
       />
 
-      {/* Category Dropdown */}
+      {/* Category dropdown for filtering by genre */}
       <View style={styles.dropdownContainer}>
         <Text style={styles.dropdownLabel}>Filter by Genre:</Text>
         <View style={styles.dropdownWrapper}>
@@ -102,20 +120,24 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Game Grid */}
+      {/* Grid of games */}
       <FlatList
         data={filteredGames}
-      keyExtractor={(item) => item.$id}
+        keyExtractor={(item) => item.$id}
         numColumns={3}
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
-              console.log('✅ Tapped game ID:', item.$id);
-              router.push({ pathname: '/game/[id]', params: { id: item.$id } });
+              try {
+                router.push({ pathname: '/game/[id]', params: { id: item.$id } });
+              } catch (err: any) {
+                console.error('Navigation error:', err);
+                Alert.alert('Navigation Error', 'Unable to open game details. Please try again.');
+              }
             }}
-            style={styles.card} // move card style here
+            style={styles.card}
           >
             <Image source={{ uri: item.image }} style={styles.cardImage} />
             <View style={styles.cardBody}>
@@ -132,6 +154,7 @@ export default function HomeScreen() {
   );
 }
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -176,7 +199,7 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    aspectRatio: 1.6, // Try 1.5–1.8 based on your layout
+    aspectRatio: 1.6,
     resizeMode: 'cover',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,

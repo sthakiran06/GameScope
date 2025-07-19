@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButton: {
-    marginLeft: 16,
+    marginLeft: 16, 
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
