@@ -23,8 +23,9 @@ const DATABASE_ID = '6872ea7d003af1fd5568';
 const FAVORITES_COLLECTION_ID = '6874fecd0002abec583d';
 
 const screenWidth = Dimensions.get('window').width;
-const cardWidth = (screenWidth - 64) / 2; // Changed to 2 columns for better visual balance
+const cardWidth = (screenWidth - 64) / 2; // For 2-column layout
 
+// Define shape of a Favorite document
 type Favorite = {
   $id: string;
   gameId: string;
@@ -32,6 +33,7 @@ type Favorite = {
   gameImage?: string;
 };
 
+// For tracking which favorite is being removed
 interface LoadingState {
   removingFavorite: string | null;
 }
@@ -44,6 +46,7 @@ export default function FavoritesScreen() {
     removingFavorite: null,
   });
 
+  // Fetch all favorite games for the logged-in user
   const fetchFavorites = async () => {
     try {
       const user = await account.get();
@@ -59,39 +62,49 @@ export default function FavoritesScreen() {
         gameImage: doc.gameImage,
       }));
       setFavorites(parsed);
-    } catch (err) {
-      console.error('❌ Failed to fetch favorites:', err);
-      Alert.alert('Error', 'Failed to load favorites. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to fetch favorites:', err);
+      Alert.alert(
+        'Error Loading Favorites',
+        err?.message || 'Could not load your favorites at this time. Please try again later.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // Remove a favorite game by ID
   const removeFavorite = async (favoriteId: string) => {
     setLoadingState(prev => ({ ...prev, removingFavorite: favoriteId }));
     try {
       await databases.deleteDocument(DATABASE_ID, FAVORITES_COLLECTION_ID, favoriteId);
       setFavorites((prev) => prev.filter((fav) => fav.$id !== favoriteId));
-    } catch (err) {
-      console.error('❌ Failed to remove favorite:', err);
-      Alert.alert('Error', 'Could not remove favorite. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to remove favorite:', err);
+      Alert.alert(
+        'Error Removing Favorite',
+        err?.message || 'Could not remove this game from favorites. Please try again.'
+      );
     } finally {
       setLoadingState(prev => ({ ...prev, removingFavorite: null }));
     }
   };
 
+  // Triggered by pull-to-refresh
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchFavorites();
     setRefreshing(false);
   };
 
+  // Automatically fetch favorites when screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchFavorites();
     }, [])
   );
 
+  // Show loading spinner while fetching data initially
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -107,7 +120,7 @@ export default function FavoritesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#667eea" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -120,9 +133,7 @@ export default function FavoritesScreen() {
 
       <FlatList
         style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         data={favorites}
         keyExtractor={(item) => item.$id}
         numColumns={2}
@@ -131,7 +142,7 @@ export default function FavoritesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>🎮</Text>
+              <Text style={styles.emptyIconText}>No Icon</Text>
             </View>
             <Text style={styles.emptyStateTitle}>No favorites yet</Text>
             <Text style={styles.emptyStateText}>
@@ -154,13 +165,13 @@ export default function FavoritesScreen() {
                 <Text style={styles.heartIcon}>❤️</Text>
               </View>
             </View>
-            
+
             <View style={styles.gameInfo}>
               <Text style={styles.gameTitle} numberOfLines={2}>
                 {item.gameTitle}
               </Text>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => removeFavorite(item.$id)}
                 disabled={loadingState.removingFavorite === item.$id}
@@ -341,3 +352,4 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
+
