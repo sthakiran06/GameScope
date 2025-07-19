@@ -1,250 +1,356 @@
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { ValidIndicator } from '@/components/ui/ValidIndicator';
 import { AuthContext } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { 
+  ActivityIndicator, 
+  Alert, 
+  Pressable, 
+  SafeAreaView, 
+  ScrollView,
+  StatusBar, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  View 
+} from 'react-native';
 import { ID } from 'react-native-appwrite';
 
-export default function SignUp() {
-  // Track user inputs for registration
+export default function SignUp(props: any) {
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-
-  // Track validation status for email and password
   const [validEmail, setValidEmail] = useState<boolean>(false);
   const [validPassword, setValidPassword] = useState<boolean>(false);
-
-  // Session state to redirect after signup
+  const [validName, setValidName] = useState<boolean>(false);
   const [auth, setAuth] = useState<null | any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Display error message to user
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Get Auth context methods
   const user = useContext(AuthContext);
 
-  /**
-   * Handle sign up process
-   * - Validates input
-   * - Creates user account with Appwrite
-   * - Signs user in immediately after registration
-   * - Provides robust error handling with specific messages
-   */
   const register = async () => {
-    // Validate name
-    if (!name.trim()) {
-      setErrorMessage('Please enter your full name.');
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
+  
+    if (!validEmail || !validPassword || !validName) {
+      Alert.alert('Error', 'Please ensure all fields are valid');
+      return;
+    }
+  
+    setIsLoading(true);
     try {
-      // Attempt to register the user
-      await user.create(ID.unique(), email.trim(), password, name.trim());
-
-      // Immediately create session upon successful registration
-      const session = await user.createEmailPasswordSession(email.trim(), password);
-      setAuth(session);
-      setErrorMessage(null); // Clear any previous error
-    } catch (err: any) {
-      console.error('Registration Error:', err);
-
-      // Handle different Appwrite error messages
-      let message = 'Something went wrong during sign up.';
-      const errorText = err?.message?.toLowerCase();
-
-      if (errorText?.includes('already exists')) {
-        message = 'This email is already registered. Please log in or use a different email.';
-      } else if (errorText?.includes('rate limit')) {
-        message = 'Too many attempts. Please wait a few moments and try again.';
-      } else if (errorText?.includes('invalid email')) {
-        message = 'Please enter a valid email address.';
-      } else if (errorText?.includes('password')) {
-        message = 'Password must be at least 8 characters.';
+      //  Check if a session is already active
+      try {
+        await user.get(); // throws if no session
+        console.log(" Session already exists, deleting...");
+        await user.deleteSession('current');
+      } catch (checkErr) {
+        // No active session, safe to proceed
       }
-
-      setErrorMessage(message);
+  
+      // Proceed with registration
+      await user.create(ID.unique(), email, password, name);
+  
+      //  Create session after successful registration
+      const session = await user.createEmailPasswordSession(email, password);
+      setAuth(session);
+    } catch (err: any) {
+      console.error(' Registration failed:', err);
+      Alert.alert('Registration Error', err.message || 'Failed to create account. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Automatically navigate to the main app if authenticated
   useEffect(() => {
     if (auth) {
       router.navigate('/(tabs)');
     }
   }, [auth]);
 
-  // Email validation
+  useEffect(() => {
+    setValidName(name.trim().length >= 2);
+  }, [name]);
+
   useEffect(() => {
     setValidEmail(email.includes('@') && email.includes('.'));
   }, [email]);
 
-  // Password validation
   useEffect(() => {
     setValidPassword(password.length >= 8);
   }, [password]);
 
+  useEffect(() => {
+    console.log(user);
+  }, [user]);
+
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const userData = await user.get();
+        console.log(" Active session:", userData);
+      } catch (e) {
+        console.log("ℹ No active session");
+      }
+    };
+  
+    checkSession();
+  }, []);
+
+  const isFormValid = validName && validEmail && validPassword;
+
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.form}>
-        <Text style={styles.appName}>GameScope</Text>
-        <Text style={styles.title}>Sign Up</Text>
-
-        {/* Name input */}
-        <View style={styles.label}>
-          <ThemedText>Name</ThemedText>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#667eea" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.appName}>🎮 GameScope</Text>
+          <Text style={styles.welcomeText}>Join our community!</Text>
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Your full name"
-          onChangeText={setName}
-          value={name}
-          placeholderTextColor="#888"
-        />
-
-        {/* Email input with live validation */}
-        <View style={styles.label}>
-          <ThemedText>Email</ThemedText>
-          <ValidIndicator valid={validEmail} />
-        </View>
-        <TextInput
-          style={styles.input}
-          placeholder="you@example.com"
-          onChangeText={setEmail}
-          value={email}
-          placeholderTextColor="#888"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        {/* Password input with live validation */}
-        <View style={styles.label}>
-          <ThemedText>Password</ThemedText>
-          <ValidIndicator valid={validPassword} />
-        </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Minimum 8 characters"
-          secureTextEntry
-          onChangeText={setPassword}
-          value={password}
-          placeholderTextColor="#888"
-        />
-
-        {/* Display error message if any */}
-        {errorMessage && (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        )}
-
-        {/* Sign Up Button (disabled if invalid) */}
-        <Pressable
-          style={validEmail && validPassword ? styles.button : styles.buttonDisabled}
-          disabled={!(validEmail && validPassword)}
-          onPress={register}
-        >
-          <ThemedText
-            style={
-              validEmail && validPassword
-                ? styles.buttonText
-                : styles.buttonTextDisabled
-            }
-          >
-            Create Account
-          </ThemedText>
-        </Pressable>
-
-        {/* Navigate to Login screen */}
-        <Pressable onPress={() => router.push('/login')}>
-          <ThemedText style={styles.link}>Already have an account? Login</ThemedText>
-        </Pressable>
       </View>
-    </ThemedView>
+
+      {/* SignUp Form */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Create Account</Text>
+          
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Full Name</Text>
+              <ValidIndicator valid={validName} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your full name"
+              onChangeText={setName}
+              value={name}
+              placeholderTextColor="#9ca3af"
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Email Address</Text>
+              <ValidIndicator valid={validEmail} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="you@example.com"
+              onChangeText={setEmail}
+              value={email}
+              placeholderTextColor="#9ca3af"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Password</Text>
+              <ValidIndicator valid={validPassword} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Minimum 8 characters"
+              secureTextEntry={true}
+              value={password}
+              onChangeText={setPassword}
+              placeholderTextColor="#9ca3af"
+              editable={!isLoading}
+            />
+            <Text style={styles.passwordHint}>
+              Password must be at least 8 characters long
+            </Text>
+          </View>
+
+          <Pressable
+            style={[
+              styles.primaryButton,
+              (!isFormValid || isLoading) && styles.buttonDisabled
+            ]}
+            disabled={!isFormValid || isLoading}
+            onPress={register}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Create Account</Text>
+            )}
+          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable 
+            style={styles.secondaryButton} 
+            onPress={() => router.push('/login')}
+            disabled={isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>Already have an account? Sign In</Text>
+          </Pressable>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            By creating an account, you agree to our terms of service and privacy policy
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-// Style definitions
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f8fafc',
   },
-  form: {
-    marginHorizontal: 40,
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
+  header: {
+    backgroundColor: '#667eea',
+    paddingBottom: 30,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 40,
   },
   appName: {
-    textAlign: 'center',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    color: '#1e90ff',
-    marginBottom: 12,
+    color: '#fff',
+    marginBottom: 8,
   },
-  title: {
-    fontSize: 22,
-    textAlign: 'center',
-    fontWeight: '700',
+  welcomeText: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    marginTop: 30,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1f2937',
     marginBottom: 24,
+    textAlign: 'center',
   },
-  label: {
+  inputGroup: {
+    marginBottom: 20,
+  },
+  labelContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
   },
   input: {
-    backgroundColor: '#edf0f5',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    color: '#000',
+    backgroundColor: '#fff',
+    color: '#1f2937',
   },
-  button: {
-    backgroundColor: '#1e90ff',
-    paddingVertical: 14,
-    borderRadius: 8,
+  passwordHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  primaryButton: {
+    backgroundColor: '#667eea',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: '#9ca3af',
+  },
+  divider: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginVertical: 20,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
   },
-  buttonTextDisabled: {
-    color: '#555',
-    fontWeight: '500',
-    fontSize: 16,
-  },
-  link: {
-    textAlign: 'center',
+  dividerText: {
+    paddingHorizontal: 16,
     fontSize: 14,
-    color: '#1e90ff',
+    color: '#6b7280',
     fontWeight: '500',
-    marginTop: 10,
   },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
+  secondaryButton: {
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  secondaryButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 10,
+    lineHeight: 18,
   },
 });
+

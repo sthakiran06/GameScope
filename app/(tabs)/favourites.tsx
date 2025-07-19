@@ -142,7 +142,7 @@ export default function FavoritesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>No Icon</Text>
+              <Text style={styles.emptyIconText}>💔</Text>
             </View>
             <Text style={styles.emptyStateTitle}>No favorites yet</Text>
             <Text style={styles.emptyStateText}>
