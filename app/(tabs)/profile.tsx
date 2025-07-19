@@ -1,18 +1,38 @@
+// ProfileScreen.tsx
+//
+// This screen displays the user's profile including name, email, and reviews.
+// Features include:
+// - Fetching current user details from Appwrite
+// - Updating the display name
+// - Viewing, editing, and deleting user reviews
+// - Logging out
+// - Handling modal states, refreshing UI, and graceful error handling across all interactions
+
 import { account, databases } from '@/lib/appwrite';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Modal, Platform, RefreshControl, SafeAreaView,
-  StatusBar, StyleSheet, Text,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  RefreshControl,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
   TextInput,
-  TouchableOpacity, View
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Models, Query } from 'react-native-appwrite';
 
+// Appwrite configuration constants
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
 
-// Type definitions
+// Local type definitions for strong typing of Appwrite data
 interface User {
   $id: string;
   name: string;
@@ -32,6 +52,7 @@ interface LoadingState {
 }
 
 export default function ProfileScreen() {
+  // State variables for user profile, reviews, modal visibility, input values, and loading flags
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [editingGameTitle, setEditingGameTitle] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -47,21 +68,24 @@ export default function ProfileScreen() {
     deletingReview: null,
     updatingReview: null,
   });
+
   const router = useRouter();
 
+  // Fetch current authenticated user
   const fetchUser = async () => {
     try {
       const user = await account.get();
       setUser(user);
       setNewName(user.name);
       return user;
-    } catch (err) {
-      console.error('❌ Failed to fetch user:', err);
-      Alert.alert('Error', 'Failed to load profile. Please try again.');
+    } catch (err: any) {
+      console.error('Error fetching user:', err);
+      Alert.alert('Error', err.message || 'Failed to load profile. Please try again.');
       return null;
     }
   };
 
+  // Fetch user's reviews based on user ID
   const fetchUserReviews = async (userId: string) => {
     try {
       const res = await databases.listDocuments<Review>(
@@ -70,50 +94,50 @@ export default function ProfileScreen() {
         [Query.equal('userId', userId), Query.orderDesc('timestamp')]
       );
       setReviews(res.documents);
-    } catch (err) {
-      console.error('❌ Failed to fetch reviews:', err);
-      Alert.alert('Error', 'Failed to load reviews. Please try again.');
+    } catch (err: any) {
+      console.error('Error fetching reviews:', err);
+      Alert.alert('Error', err.message || 'Failed to load reviews. Please try again.');
     }
   };
 
+  // Update the user's display name
   const updateName = async () => {
     if (!newName.trim()) {
       Alert.alert('Error', 'Name cannot be empty');
       return;
     }
-    
-    if (newName.trim() === user?.name) {
-      return; // No changes
-    }
+    if (newName.trim() === user?.name) return;
 
     setLoadingState(prev => ({ ...prev, updatingName: true }));
-    
+
     try {
       await account.updateName(newName.trim());
-      setUser((prev: User | null) => prev ? { ...prev, name: newName.trim() } : null);
+      setUser(prev => prev ? { ...prev, name: newName.trim() } : null);
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not update name. Please try again.');
+    } catch (err: any) {
+      console.error('Error updating name:', err);
+      Alert.alert('Error', err.message || 'Could not update name. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, updatingName: false }));
     }
   };
 
+  // Delete a specific review document
   const deleteReview = async (reviewId: string) => {
     setLoadingState(prev => ({ ...prev, deletingReview: reviewId }));
     try {
       await databases.deleteDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, reviewId);
-      setReviews((prev) => prev.filter((r) => r.$id !== reviewId));
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not delete review. Please try again.');
+      setReviews(prev => prev.filter(r => r.$id !== reviewId));
+    } catch (err: any) {
+      console.error('Error deleting review:', err);
+      Alert.alert('Error', err.message || 'Could not delete review. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, deletingReview: null }));
     }
   };
 
+  // Prompt or show modal to edit a review
   const updateReview = (reviewId: string, currentText: string) => {
     if (Platform.OS === 'web') {
       const newText = prompt('Update your review:', currentText);
@@ -122,18 +146,18 @@ export default function ProfileScreen() {
         databases.updateDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, reviewId, {
           content: newText,
         }).then(() => {
-          setReviews((prev) =>
-            prev.map((r) => (r.$id === reviewId ? { ...r, content: newText } : r))
+          setReviews(prev =>
+            prev.map(r => (r.$id === reviewId ? { ...r, content: newText } : r))
           );
-        }).catch((err) => {
-          console.error(err);
-          Alert.alert('Error', 'Could not update review. Please try again.');
+        }).catch((err: any) => {
+          console.error('Error updating review (web):', err);
+          Alert.alert('Error', err.message || 'Could not update review.');
         }).finally(() => {
           setLoadingState(prev => ({ ...prev, updatingReview: null }));
         });
       }
     } else {
-      const gameTitle = reviews.find((r) => r.$id === reviewId)?.gameTitle || '';
+      const gameTitle = reviews.find(r => r.$id === reviewId)?.gameTitle || '';
       setEditingGameTitle(gameTitle);
       setEditingReviewId(reviewId);
       setEditingReviewText(currentText);
@@ -141,6 +165,7 @@ export default function ProfileScreen() {
     }
   };
 
+  // Save changes from the review edit modal
   const handleUpdateReview = async () => {
     if (!editingReviewText.trim()) {
       Alert.alert('Error', 'Review cannot be empty');
@@ -148,38 +173,35 @@ export default function ProfileScreen() {
     }
 
     setLoadingState(prev => ({ ...prev, updatingReview: editingReviewId }));
-    
+
     try {
-      await databases.updateDocument(
-        DATABASE_ID,
-        REVIEWS_COLLECTION_ID,
-        editingReviewId,
-        { content: editingReviewText }
-      );
-      setReviews((prev) =>
-        prev.map((r) =>
-          r.$id === editingReviewId ? { ...r, content: editingReviewText } : r
-        )
+      await databases.updateDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, editingReviewId, {
+        content: editingReviewText,
+      });
+      setReviews(prev =>
+        prev.map(r => (r.$id === editingReviewId ? { ...r, content: editingReviewText } : r))
       );
       setEditModalVisible(false);
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not update review. Please try again.');
+    } catch (err: any) {
+      console.error('Error updating review:', err);
+      Alert.alert('Error', err.message || 'Could not update review. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, updatingReview: null }));
     }
   };
 
+  // Log the user out and return to login screen
   const signOut = async () => {
     try {
       await account.deleteSession('current');
       router.replace('/login');
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not sign out. Please try again.');
+    } catch (err: any) {
+      console.error('Error signing out:', err);
+      Alert.alert('Error', err.message || 'Could not sign out. Please try again.');
     }
   };
 
+  // Pull-to-refresh logic
   const onRefresh = async () => {
     setRefreshing(true);
     const user = await fetchUser();
@@ -189,13 +211,20 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
+  // On initial mount, fetch user and reviews
   useEffect(() => {
-    fetchUser().then((res) => {
+    fetchUser().then(res => {
       if (res?.$id) fetchUserReviews(res.$id);
       setLoading(false);
     });
   }, []);
 
+  // Utility: Get initials from name (e.g., Bipin Sapkota → BS)
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Renders conditional UI states (loading, error, or profile content)
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -222,9 +251,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -626,7 +652,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButton: {
-    marginLeft: 16, 
+    marginLeft: 16,
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
