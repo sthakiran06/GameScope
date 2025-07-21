@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
   StyleSheet,
+  ScrollView,
   Text,
   TextInput,
   View
@@ -59,7 +60,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#667eea" />
-
+  
       {/* Header section */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -70,78 +71,85 @@ export default function LoginScreen() {
           <Text style={styles.welcomeText}>Welcome back!</Text>
         </View>
       </View>
-
-      {/* Main content section with login form */}
-      <View style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Log In</Text>
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              onChangeText={setEmail}
-              value={email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor="#9ca3af"
-              editable={!isLoading}
-            />
+  
+      {/* Scrollable content area */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Log In</Text>
+  
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                onChangeText={setEmail}
+                value={email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#9ca3af"
+                editable={!isLoading}
+              />
+            </View>
+  
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                onChangeText={setPassword}
+                value={password}
+                secureTextEntry
+                placeholderTextColor="#9ca3af"
+                editable={!isLoading}
+              />
+            </View>
+  
+            {/* Login Button */}
+            <Pressable
+              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+              onPress={login}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Log In</Text>
+              )}
+            </Pressable>
+  
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+  
+            {/* Sign Up Redirect */}
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => router.push('/SignUp')}
+              disabled={isLoading}
+            >
+              <Text style={styles.secondaryButtonText}>Create New Account</Text>
+            </Pressable>
           </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              onChangeText={setPassword}
-              value={password}
-              secureTextEntry
-              placeholderTextColor="#9ca3af"
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Login Button */}
-          <Pressable
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-            onPress={login}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Log In</Text>
-            )}
-          </Pressable>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Sign Up Redirect */}
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => router.push('/SignUp')}
-            disabled={isLoading}
-          >
-            <Text style={styles.secondaryButtonText}>Create New Account</Text>
-          </Pressable>
         </View>
-
+  
         {/* Footer section with disclaimer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             By signing in, you agree to our terms of service and privacy policy
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
