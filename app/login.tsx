@@ -1,133 +1,279 @@
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { account } from '@/lib/appwrite';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
 
 export default function LoginScreen() {
-  // State variables for user input
+  // State variables for storing user input and loading status
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Function to handle login
+  // Function to handle login logic
   const login = async () => {
-    try {
-      if (!email.trim() || !password.trim()) {
-        alert('Please enter both email and password.');
-        return;
-      }
+    // Input validation: Ensure both fields are filled
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
 
+    setIsLoading(true); // Begin loading state
+
+    try {
       console.log('Attempting login with:', email);
 
-      // Attempt to delete any existing session to avoid session conflict
+      // Attempt to delete current session if one exists
       try {
         await account.deleteSession('current');
-        console.log('Previous session cleared.');
-      } catch (e) {
-        // Not an error if there is no active session
-        console.log('No existing session to delete.');
+        console.log('Previous session cleared');
+      } catch (e: any) {
+        // Log but ignore if there is no active session to delete
+        console.warn('No active session to delete:', e.message || e);
       }
 
-      // Create a new session using email/password
+      // Attempt to create a new session with provided credentials
       const session = await account.createEmailPasswordSession(email, password);
       console.log('Login successful:', session);
 
-      // Navigate to the main tab layout on success
+      // Navigate to the main tab screen
       router.replace('/(tabs)');
     } catch (err: any) {
-      // Handle and display any login errors gracefully
-      console.error('Login failed:', err);
-      const message = err?.message || 'An unexpected login error occurred.';
-      alert(message);
+      console.error('Login failed:', err.message || err);
+      Alert.alert('Login Error', err.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false); // End loading state
     }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <Text style={styles.appName}>GameScope</Text>
-      <Text style={styles.title}>Login</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#667eea" />
 
-      {/* Email input field */}
-      <TextInput
-        style={styles.input}
-        placeholder="you@example.com"
-        onChangeText={setEmail}
-        value={email}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        placeholderTextColor="#888"
-      />
+      {/* Header section */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+          />
+          <Text style={styles.welcomeText}>Welcome back!</Text>
+        </View>
+      </View>
 
-      {/* Password input field */}
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        onChangeText={setPassword}
-        value={password}
-        secureTextEntry
-        placeholderTextColor="#888"
-      />
+      {/* Main content section with login form */}
+      <View style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Log In</Text>
 
-      {/* Login button */}
-      <Pressable style={styles.button} onPress={login}>
-        <ThemedText style={styles.buttonText}>Login</ThemedText>
-      </Pressable>
+          {/* Email Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="you@example.com"
+              onChangeText={setEmail}
+              value={email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor="#9ca3af"
+              editable={!isLoading}
+            />
+          </View>
 
-      {/* Navigate to sign-up screen */}
-      <Pressable onPress={() => router.push('/SignUp')}>
-        <ThemedText style={styles.link}>Don't have an account? Sign up</ThemedText>
-      </Pressable>
-    </ThemedView>
+          {/* Password Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              onChangeText={setPassword}
+              value={password}
+              secureTextEntry
+              placeholderTextColor="#9ca3af"
+              editable={!isLoading}
+            />
+          </View>
+
+          {/* Login Button */}
+          <Pressable
+            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+            onPress={login}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Log In</Text>
+            )}
+          </Pressable>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Sign Up Redirect */}
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => router.push('/SignUp')}
+            disabled={isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>Create New Account</Text>
+          </Pressable>
+        </View>
+
+        {/* Footer section with disclaimer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            By signing in, you agree to our terms of service and privacy policy
+          </Text>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-// Style definitions
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 80,
-    paddingHorizontal: 30,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f8fafc',
   },
-  appName: {
+  header: {
+    backgroundColor: '#667eea',
+    paddingBottom: 30,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+    marginBottom: 12,
+  },
+  welcomeText: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    marginTop: 30,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 24,
     textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#1e90ff',
+  },
+  inputGroup: {
     marginBottom: 20,
   },
-  title: {
-    fontSize: 22,
-    textAlign: 'center',
-    marginBottom: 30,
-    fontWeight: '700',
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: '#edf0f5',
-    padding: 12,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
-    marginBottom: 20,
-    color: '#000',
+    backgroundColor: '#fff',
+    color: '#1f2937',
   },
-  button: {
-    backgroundColor: '#1e90ff',
-    paddingVertical: 14,
-    borderRadius: 8,
+  primaryButton: {
+    backgroundColor: '#667eea',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
     marginBottom: 20,
   },
-  buttonText: {
+  primaryButtonText: {
     color: '#fff',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: '600',
   },
-  link: {
-    textAlign: 'center',
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    paddingHorizontal: 16,
     fontSize: 14,
-    color: '#1e90ff',
+    color: '#6b7280',
     fontWeight: '500',
-    marginTop: 10,
+  },
+  secondaryButton: {
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  secondaryButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
