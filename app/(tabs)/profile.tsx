@@ -12,55 +12,66 @@ import { account, databases } from '@/lib/appwrite';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
+  ActivityIndicator, Alert, FlatList, Modal, Platform, RefreshControl, SafeAreaView,
+  StatusBar, StyleSheet, Text,
   TextInput,
-  TouchableOpacity,
-  View,
+  TouchableOpacity, View
 } from 'react-native';
 import { Models, Query } from 'react-native-appwrite';
 
-// Appwrite configuration constants
+/**
+ * Database configuration constants
+ * These IDs reference the Appwrite database and collection for user reviews
+ */
 const DATABASE_ID = '6872ea7d003af1fd5568';
 const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
 
-// Local type definitions for strong typing of Appwrite data
+/**
+ * Type definition for user data structure
+ * Extends Appwrite's user model with required fields
+ */
 interface User {
-  $id: string;
-  name: string;
-  email: string;
+  $id: string;    // Unique user identifier from Appwrite
+  name: string;   // User's display name
+  email: string;  // User's email address
 }
 
+/**
+ * Type definition for review documents
+ * Extends Appwrite's Models.Document with review-specific fields
+ */
 interface Review extends Models.Document {
-  content: string;
-  userId: string;
-  timestamp: string;
+  content: string;    // Review text content
+  userId: string;     // ID of user who created the review
+  timestamp: string;  // ISO timestamp of when review was created
+  gameTitle?: string; // Optional game title (used in edit modal)
 }
 
+/**
+ * Type definition for loading states across different operations
+ * Helps manage UI state during async operations
+ */
 interface LoadingState {
-  updatingName: boolean;
-  deletingReview: string | null;
-  updatingReview: string | null;
+  updatingName: boolean;           // Whether name update is in progress
+  deletingReview: string | null;   // ID of review being deleted (null if none)
+  updatingReview: string | null;   // ID of review being updated (null if none)
 }
+
 
 export default function ProfileScreen() {
-  // State variables for user profile, reviews, modal visibility, input values, and loading flags
+  // Modal and UI state management
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [editingGameTitle, setEditingGameTitle] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState('');
   const [editingReviewText, setEditingReviewText] = useState('');
+  
+  // User and data state
   const [user, setUser] = useState<User | null>(null);
   const [newName, setNewName] = useState('');
   const [reviews, setReviews] = useState<Review[]>([]);
+  
+  // Loading and refresh state
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingState, setLoadingState] = useState<LoadingState>({
@@ -69,162 +80,488 @@ export default function ProfileScreen() {
     updatingReview: null,
   });
 
+
   const router = useRouter();
 
-  // Fetch current authenticated user
-  const fetchUser = async () => {
+  //Fetches current user information from Appwrite
+   
+  const fetchUser = async (): Promise<User | null> => {
     try {
       const user = await account.get();
+      
+      // Validate user data structure
+      if (!user || !user.$id || !user.name || !user.email) {
+        throw new Error('Invalid user data structure received from server');
+      }
+      
       setUser(user);
       setNewName(user.name);
       return user;
-    } catch (err: any) {
-      console.error('Error fetching user:', err);
-      Alert.alert('Error', err.message || 'Failed to load profile. Please try again.');
+    } catch (err) {
+      // Enhanced error logging with context
+      console.error('Failed to fetch user profile:', {
+        error: err,
+        timestamp: new Date().toISOString(),
+        context: 'fetchUser'
+      });
+      
+      // Handle specific error types
+      if (err instanceof Error) {
+        if (err.message.includes('unauthorized') || err.message.includes('401')) {
+          Alert.alert(
+            'Session Expired', 
+            'Your session has expired. Please log in again.',
+            [{ text: 'OK', onPress: () => router.replace('/login') }]
+          );
+          return null;
+        }
+        
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          Alert.alert(
+            'Network Error', 
+            'Unable to connect to server. Please check your internet connection and try again.'
+          );
+          return null;
+        }
+      }
+      
+      Alert.alert('Error', 'Failed to load profile. Please try again.');
       return null;
     }
   };
 
-  // Fetch user's reviews based on user ID
-  const fetchUserReviews = async (userId: string) => {
+ //Fetches all reviews created by the specified user
+  
+  const fetchUserReviews = async (userId: string): Promise<void> => {
+    // Input validation
+    if (!userId || typeof userId !== 'string') {
+      console.error('Invalid userId provided to fetchUserReviews:', userId);
+      Alert.alert('Error', 'Invalid user identifier. Please try refreshing the page.');
+      return;
+    }
+
     try {
       const res = await databases.listDocuments<Review>(
         DATABASE_ID,
         REVIEWS_COLLECTION_ID,
         [Query.equal('userId', userId), Query.orderDesc('timestamp')]
       );
+      
+      // Validate response structure
+      if (!res || !Array.isArray(res.documents)) {
+        throw new Error('Invalid response structure from database');
+      }
+      
       setReviews(res.documents);
-    } catch (err: any) {
-      console.error('Error fetching reviews:', err);
-      Alert.alert('Error', err.message || 'Failed to load reviews. Please try again.');
+    } catch (err) {
+      // Enhanced error logging
+      console.error('Failed to fetch user reviews:', {
+        error: err,
+        userId,
+        timestamp: new Date().toISOString(),
+        context: 'fetchUserReviews'
+      });
+      
+      // Handle specific error scenarios
+      if (err instanceof Error) {
+        if (err.message.includes('permission') || err.message.includes('403')) {
+          Alert.alert(
+            'Access Denied', 
+            'You do not have permission to view these reviews.'
+          );
+          return;
+        }
+        
+        if (err.message.includes('not found') || err.message.includes('404')) {
+          Alert.alert(
+            'Reviews Not Found', 
+            'Unable to find reviews for this user.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert('Error', 'Failed to load reviews. Please try again.');
     }
   };
 
-  // Update the user's display name
-  const updateName = async () => {
-    if (!newName.trim()) {
+
+  // Updates the user's display name
+  const updateName = async (): Promise<void> => {
+    // Input validation
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
       Alert.alert('Error', 'Name cannot be empty');
       return;
     }
-    if (newName.trim() === user?.name) return;
+    
+    // Check if name actually changed
+    if (trimmedName === user?.name) {
+      return; // No changes needed
+    }
+
+    // Additional validation for name length and characters
+    if (trimmedName.length > 50) {
+      Alert.alert('Error', 'Name cannot exceed 50 characters');
+      return;
+    }
 
     setLoadingState(prev => ({ ...prev, updatingName: true }));
-
+    
     try {
-      await account.updateName(newName.trim());
-      setUser(prev => prev ? { ...prev, name: newName.trim() } : null);
+      await account.updateName(trimmedName);
+      
+      // Update local user state
+      setUser((prev: User | null) => prev ? { ...prev, name: trimmedName } : null);
+      
+      // Show success feedback
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
-    } catch (err: any) {
-      console.error('Error updating name:', err);
-      Alert.alert('Error', err.message || 'Could not update name. Please try again.');
+      
+    } catch (err) {
+      // Enhanced error logging
+      console.error('Failed to update user name:', {
+        error: err,
+        newName: trimmedName,
+        userId: user?.$id,
+        timestamp: new Date().toISOString(),
+        context: 'updateName'
+      });
+      
+      // Handle specific error types
+      if (err instanceof Error) {
+        if (err.message.includes('unauthorized') || err.message.includes('401')) {
+          Alert.alert(
+            'Session Expired', 
+            'Your session has expired. Please log in again.',
+            [{ text: 'OK', onPress: () => router.replace('/login') }]
+          );
+          return;
+        }
+        
+        if (err.message.includes('validation') || err.message.includes('400')) {
+          Alert.alert(
+            'Invalid Name', 
+            'The name you entered is not valid. Please try a different name.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert('Error', 'Could not update name. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, updatingName: false }));
     }
   };
 
-  // Delete a specific review document
-  const deleteReview = async (reviewId: string) => {
+
+   // Deletes a review from the database and updates local state
+  const deleteReview = async (reviewId: string): Promise<void> => {
+    // Input validation
+    if (!reviewId || typeof reviewId !== 'string') {
+      console.error('Invalid reviewId provided to deleteReview:', reviewId);
+      Alert.alert('Error', 'Invalid review identifier');
+      return;
+    }
+
     setLoadingState(prev => ({ ...prev, deletingReview: reviewId }));
+    
     try {
       await databases.deleteDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, reviewId);
-      setReviews(prev => prev.filter(r => r.$id !== reviewId));
-    } catch (err: any) {
-      console.error('Error deleting review:', err);
-      Alert.alert('Error', err.message || 'Could not delete review. Please try again.');
+      
+      // Update local state only after successful deletion
+      setReviews((prev) => prev.filter((r) => r.$id !== reviewId));
+      
+    } catch (err) {
+      // Enhanced error logging
+      console.error('Failed to delete review:', {
+        error: err,
+        reviewId,
+        userId: user?.$id,
+        timestamp: new Date().toISOString(),
+        context: 'deleteReview'
+      });
+      
+      // Handle specific error scenarios
+      if (err instanceof Error) {
+        if (err.message.includes('not found') || err.message.includes('404')) {
+          Alert.alert(
+            'Review Not Found', 
+            'This review has already been deleted or does not exist.'
+          );
+          // Remove from local state even if not found on server
+          setReviews((prev) => prev.filter((r) => r.$id !== reviewId));
+          return;
+        }
+        
+        if (err.message.includes('permission') || err.message.includes('403')) {
+          Alert.alert(
+            'Access Denied', 
+            'You do not have permission to delete this review.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert('Error', 'Could not delete review. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, deletingReview: null }));
     }
   };
 
-  // Prompt or show modal to edit a review
-  const updateReview = (reviewId: string, currentText: string) => {
-    if (Platform.OS === 'web') {
-      const newText = prompt('Update your review:', currentText);
-      if (newText && newText !== currentText) {
-        setLoadingState(prev => ({ ...prev, updatingReview: reviewId }));
-        databases.updateDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, reviewId, {
-          content: newText,
-        }).then(() => {
-          setReviews(prev =>
-            prev.map(r => (r.$id === reviewId ? { ...r, content: newText } : r))
-          );
-        }).catch((err: any) => {
-          console.error('Error updating review (web):', err);
-          Alert.alert('Error', err.message || 'Could not update review.');
-        }).finally(() => {
-          setLoadingState(prev => ({ ...prev, updatingReview: null }));
-        });
-      }
-    } else {
-      const gameTitle = reviews.find(r => r.$id === reviewId)?.gameTitle || '';
-      setEditingGameTitle(gameTitle);
-      setEditingReviewId(reviewId);
-      setEditingReviewText(currentText);
-      setEditModalVisible(true);
-    }
-  };
-
-  // Save changes from the review edit modal
-  const handleUpdateReview = async () => {
-    if (!editingReviewText.trim()) {
-      Alert.alert('Error', 'Review cannot be empty');
+  /**
+   * Initiates review editing process
+   * 
+   * @param reviewId - The unique identifier of the review to edit
+   * @param currentText - The current text content of the review
+   * 
+   * Platform-specific handling:
+   * - Web: Uses browser prompt dialog
+   * - Mobile: Opens custom modal for better UX
+   */
+  const updateReview = (reviewId: string, currentText: string): void => {
+    // Input validation
+    if (!reviewId || typeof reviewId !== 'string') {
+      console.error('Invalid reviewId provided to updateReview:', reviewId);
+      Alert.alert('Error', 'Invalid review identifier');
       return;
     }
 
-    setLoadingState(prev => ({ ...prev, updatingReview: editingReviewId }));
+    if (typeof currentText !== 'string') {
+      console.error('Invalid currentText provided to updateReview:', currentText);
+      Alert.alert('Error', 'Invalid review content');
+      return;
+    }
 
+    if (Platform.OS === 'web') {
+      // Web platform: use browser prompt
+      try {
+        const newText = prompt('Update your review:', currentText);
+        if (newText && newText !== currentText && newText.trim()) {
+          handleUpdateReviewWeb(reviewId, newText.trim());
+        }
+      } catch (err) {
+        console.error('Failed to show prompt dialog:', err);
+        Alert.alert('Error', 'Unable to open edit dialog. Please try again.');
+      }
+    } else {
+      // Mobile platform: use custom modal
+      try {
+        const review = reviews.find((r) => r.$id === reviewId);
+        const gameTitle = review?.gameTitle || '';
+        
+        setEditingGameTitle(gameTitle);
+        setEditingReviewId(reviewId);
+        setEditingReviewText(currentText);
+        setEditModalVisible(true);
+      } catch (err) {
+        console.error('Failed to initialize edit modal:', err);
+        Alert.alert('Error', 'Unable to open edit dialog. Please try again.');
+      }
+    }
+  };
+
+  /**
+   * Handles review update for web platform using prompt dialog
+   * 
+   * @param reviewId - The unique identifier of the review to update
+   * @param newText - The new text content for the review
+   */
+  const handleUpdateReviewWeb = async (reviewId: string, newText: string): Promise<void> => {
+    setLoadingState(prev => ({ ...prev, updatingReview: reviewId }));
+    
     try {
-      await databases.updateDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, editingReviewId, {
-        content: editingReviewText,
+      await databases.updateDocument(DATABASE_ID, REVIEWS_COLLECTION_ID, reviewId, {
+        content: newText,
       });
-      setReviews(prev =>
-        prev.map(r => (r.$id === editingReviewId ? { ...r, content: editingReviewText } : r))
+      
+      // Update local state
+      setReviews((prev) =>
+        prev.map((r) => (r.$id === reviewId ? { ...r, content: newText } : r))
       );
-      setEditModalVisible(false);
-    } catch (err: any) {
-      console.error('Error updating review:', err);
-      Alert.alert('Error', err.message || 'Could not update review. Please try again.');
+      
+    } catch (err) {
+      console.error('Failed to update review (web):', {
+        error: err,
+        reviewId,
+        timestamp: new Date().toISOString(),
+        context: 'handleUpdateReviewWeb'
+      });
+      
+      Alert.alert('Error', 'Could not update review. Please try again.');
     } finally {
       setLoadingState(prev => ({ ...prev, updatingReview: null }));
     }
   };
 
-  // Log the user out and return to login screen
-  const signOut = async () => {
+  // Handles review update for mobile platforms using modal dialog
+  const handleUpdateReview = async (): Promise<void> => {
+    // Input validation
+    const trimmedText = editingReviewText.trim();
+    if (!trimmedText) {
+      Alert.alert('Error', 'Review cannot be empty');
+      return;
+    }
+
+    // Additional validation for review length
+    if (trimmedText.length > 500) {
+      Alert.alert('Error', 'Review cannot exceed 500 characters');
+      return;
+    }
+
+    if (!editingReviewId) {
+      Alert.alert('Error', 'Invalid review selected for editing');
+      return;
+    }
+
+    setLoadingState(prev => ({ ...prev, updatingReview: editingReviewId }));
+    
+    try {
+      await databases.updateDocument(
+        DATABASE_ID,
+        REVIEWS_COLLECTION_ID,
+        editingReviewId,
+        { content: trimmedText }
+      );
+      
+      // Update local state
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.$id === editingReviewId ? { ...r, content: trimmedText } : r
+        )
+      );
+      
+      // Close modal on success
+      setEditModalVisible(false);
+      
+    } catch (err) {
+      // Enhanced error logging
+      console.error('Failed to update review (mobile):', {
+        error: err,
+        reviewId: editingReviewId,
+        newContent: trimmedText,
+        timestamp: new Date().toISOString(),
+        context: 'handleUpdateReview'
+      });
+      
+      // Handle specific error scenarios
+      if (err instanceof Error) {
+        if (err.message.includes('not found') || err.message.includes('404')) {
+          Alert.alert(
+            'Review Not Found', 
+            'This review no longer exists and cannot be updated.'
+          );
+          setEditModalVisible(false);
+          return;
+        }
+        
+        if (err.message.includes('permission') || err.message.includes('403')) {
+          Alert.alert(
+            'Access Denied', 
+            'You do not have permission to edit this review.'
+          );
+          return;
+        }
+        
+        if (err.message.includes('validation') || err.message.includes('400')) {
+          Alert.alert(
+            'Invalid Content', 
+            'The review content is not valid. Please check your text and try again.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert('Error', 'Could not update review. Please try again.');
+    } finally {
+      setLoadingState(prev => ({ ...prev, updatingReview: null }));
+    }
+  };
+
+  // Signs out the current user and navigates to login screen
+  const signOut = async (): Promise<void> => {
     try {
       await account.deleteSession('current');
       router.replace('/login');
-    } catch (err: any) {
-      console.error('Error signing out:', err);
-      Alert.alert('Error', err.message || 'Could not sign out. Please try again.');
+    } catch (err) {
+      // Enhanced error logging
+      console.error('Failed to sign out user:', {
+        error: err,
+        userId: user?.$id,
+        timestamp: new Date().toISOString(),
+        context: 'signOut'
+      });
+      
+      // Even if session deletion fails on server, navigate to login
+      // This ensures user can still "sign out" locally
+      router.replace('/login');
+      
+      // Handle specific error scenarios
+      if (err instanceof Error) {
+        if (err.message.includes('session') || err.message.includes('401')) {
+          // Session already invalid, no need to show error
+          return;
+        }
+        
+        if (err.message.includes('network')) {
+          Alert.alert(
+            'Network Error', 
+            'Unable to connect to server, but you have been signed out locally.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert(
+        'Sign Out Warning', 
+        'There was an issue signing out completely, but you have been signed out locally.'
+      );
     }
   };
 
-  // Pull-to-refresh logic
-  const onRefresh = async () => {
+  // Handles pull-to-refresh functionality
+  const onRefresh = async (): Promise<void> => {
     setRefreshing(true);
-    const user = await fetchUser();
-    if (user?.$id) {
-      await fetchUserReviews(user.$id);
+    
+    try {
+      const user = await fetchUser();
+      if (user?.$id) {
+        await fetchUserReviews(user.$id);
+      }
+    } catch (err) {
+      // Error handling is managed within fetchUser and fetchUserReviews
+      console.error('Error during refresh:', err);
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   };
 
-  // On initial mount, fetch user and reviews
+  /**
+   * Component initialization effect
+   * Fetches user data and associated reviews on component mount
+   */
   useEffect(() => {
-    fetchUser().then(res => {
-      if (res?.$id) fetchUserReviews(res.$id);
-      setLoading(false);
-    });
+    const initializeProfile = async () => {
+      try {
+        const user = await fetchUser();
+        if (user?.$id) {
+          await fetchUserReviews(user.$id);
+        }
+      } catch (err) {
+        console.error('Failed to initialize profile:', err);
+        // Error handling is managed within individual functions
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeProfile();
   }, []);
 
-  // Utility: Get initials from name (e.g., Bipin Sapkota → BS)
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  // Renders conditional UI states (loading, error, or profile content)
+  /**
+   * Loading state UI
+   * Displayed while initial data is being fetched
+   */
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -237,6 +574,10 @@ export default function ProfileScreen() {
     );
   }
 
+  /**
+   * Error state UI
+   * Displayed when user data could not be loaded
+   */
   if (!user) {
     return (
       <SafeAreaView style={styles.errorContainer}>
@@ -251,12 +592,35 @@ export default function ProfileScreen() {
     );
   }
 
+ // Utility function to generate user initials for avatar display
+  const getInitials = (name: string): string => {
+    try {
+      if (!name || typeof name !== 'string') {
+        return '??';
+      }
+      
+      return name
+        .split(' ')
+        .filter(n => n.length > 0) // Filter out empty strings
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    } catch (err) {
+      console.error('Failed to generate initials:', err);
+      return '??';
+    }
+  };
 
+  /**
+   * Main component render
+   * Renders the complete profile interface with all features
+   */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#667eea" />
       
-      {/* Header */}
+      {/* Header Section: User info and sign out button */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.profileSection}>
@@ -274,6 +638,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Main Content: Profile settings and reviews list */}
       <FlatList
         style={styles.content}
         refreshControl={
@@ -309,7 +674,7 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Reviews Section */}
+            {/* Reviews Section Header */}
             <View style={styles.reviewsHeader}>
               <Text style={styles.sectionTitle}>My Reviews</Text>
               <View style={styles.reviewsCount}>
@@ -317,6 +682,7 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {/* Empty State: Shown when user has no reviews */}
             {reviews.length === 0 && (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateTitle}>No reviews yet</Text>
@@ -373,7 +739,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Success Modal */}
+      {/* Success Modal: Shown after successful name update */}
       <Modal visible={showSuccessModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.successModal}>
@@ -385,10 +751,10 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Edit Review Modal */}
+      {/* Edit Review Modal: Mobile-specific review editing interface */}
       <Modal visible={editModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.editModal, { minHeight: 380, paddingBottom: 32 }]}>
+          <View style={styles.editModal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Review</Text>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
@@ -396,10 +762,12 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Optional game title display */}
             {editingGameTitle ? (
               <Text style={styles.modalSubTitle}>Game: {editingGameTitle}</Text>
             ) : null}
 
+            {/* Review text input */}
             <TextInput
               style={styles.textArea}
               multiline
@@ -411,15 +779,17 @@ export default function ProfileScreen() {
               textAlignVertical="top"
             />
 
-            <View style={[styles.modalActions, { marginTop: 16 }]}>
+            {/* Modal action buttons */}
+            <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => setEditModalVisible(false)}
               >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }]}
+                style={styles.primaryButton}
                 onPress={handleUpdateReview}
                 disabled={loadingState.updatingReview !== null}
               >
@@ -437,11 +807,18 @@ export default function ProfileScreen() {
   );
 }
 
+/**
+ * StyleSheet definitions for all component styling
+ * Organized by component sections and states
+ */
 const styles = StyleSheet.create({
+  // Main container styles
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  
+  // Header section styles
   header: {
     backgroundColor: '#667eea',
     paddingBottom: 20,
@@ -505,12 +882,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  
+  // Content and list styles
   content: {
     flex: 1,
   },
   listContainer: {
     paddingBottom: 20,
   },
+  
+  // Card and form styles
   card: {
     backgroundColor: '#fff',
     marginHorizontal: 20,
@@ -548,6 +929,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#1f2937',
   },
+  
+  // Button styles
   primaryButton: {
     backgroundColor: '#667eea',
     paddingVertical: 14,
@@ -561,7 +944,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
   secondaryButton: {
     backgroundColor: '#f3f4f6',
     paddingVertical: 14,
@@ -578,6 +960,8 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     backgroundColor: '#9ca3af',
   },
+  
+  // Reviews section styles
   reviewsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -604,6 +988,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  
+  // Empty state styles
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -621,6 +1007,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  
+  // Review card styles
   reviewCard: {
     backgroundColor: '#fff',
     marginHorizontal: 20,
@@ -671,6 +1059,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#374151',
   },
+  
+  // Loading state styles
   loadingContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -685,6 +1075,8 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 16,
   },
+  
+  // Error state styles
   errorContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -702,12 +1094,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontWeight: '500',
   },
+  
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  
+  // Success modal styles
   successModal: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -740,6 +1136,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  
+  // Edit modal styles
   editModal: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -769,6 +1167,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '500',
   },
+  modalSubTitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
   textArea: {
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -785,11 +1189,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 16,
   },
-  modalSubTitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
   
 });
+
+
