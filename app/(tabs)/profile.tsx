@@ -11,6 +11,8 @@
 import { account, databases } from '@/lib/appwrite';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Modal, Platform, RefreshControl, SafeAreaView,
   StatusBar, StyleSheet, Text,
@@ -24,6 +26,7 @@ import { Models, Query } from 'react-native-appwrite';
  * These IDs reference the Appwrite database and collection for user reviews
  */
 const DATABASE_ID = '6872ea7d003af1fd5568';
+const GAMES_COLLECTION_ID = '6872ea8f003d0ad02fee';
 const REVIEWS_COLLECTION_ID = '6874f201001a70a3a76d';
 
 /**
@@ -44,7 +47,9 @@ interface Review extends Models.Document {
   content: string;    // Review text content
   userId: string;     // ID of user who created the review
   timestamp: string;  // ISO timestamp of when review was created
-  gameTitle?: string; // Optional game title (used in edit modal)
+  gameId?: string;    // Game ID reference
+  userName?: string;  // User name who created the review
+  gameTitle?: string; // Game title (fetched separately)
 }
 
 /**
@@ -152,7 +157,37 @@ export default function ProfileScreen() {
         throw new Error('Invalid response structure from database');
       }
       
-      setReviews(res.documents);
+      // Fetch game titles for each review
+      const reviewsWithTitles = await Promise.all(
+        res.documents.map(async (review) => {
+          let gameTitle = 'Unknown Game';
+          
+          if (review.gameId) {
+            try {
+              const gameDoc = await databases.getDocument(
+                DATABASE_ID,
+                GAMES_COLLECTION_ID,
+                review.gameId
+              );
+              gameTitle = gameDoc.title || 'Unknown Game';
+            } catch (error) {
+              console.error('Failed to fetch game title for gameId:', review.gameId, error);
+              // Keep default title if game fetch fails
+            }
+          }
+          
+          return {
+            ...review,
+            gameTitle
+          };
+        })
+      );
+      
+      setReviews(reviewsWithTitles);
+      
+      // Remove debug logging in production
+      console.log('Fetched reviews with titles:', reviewsWithTitles);
+      
     } catch (err) {
       // Enhanced error logging
       console.error('Failed to fetch user reviews:', {
@@ -559,6 +594,23 @@ export default function ProfileScreen() {
   }, []);
 
   /**
+   * Focus effect to refresh reviews when screen comes into focus
+   * This ensures reviews are updated when navigating back from other screens
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const refreshReviewsOnFocus = async () => {
+        if (user?.$id && !loading) {
+          // Only fetch reviews if we already have user data and aren't in initial loading
+          await fetchUserReviews(user.$id);
+        }
+      };
+
+      refreshReviewsOnFocus();
+    }, [user?.$id, loading])
+  );
+
+  /**
    * Loading state UI
    * Displayed while initial data is being fetched
    */
@@ -699,6 +751,10 @@ export default function ProfileScreen() {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <View style={styles.reviewMeta}>
+                {/* Display game title if available */}
+                {item.gameTitle && (
+                  <Text style={styles.gameTitle}>{item.gameTitle}</Text>
+                )}
                 <Text style={styles.reviewDate}>
                   {new Date(item.timestamp).toLocaleDateString('en-US', {
                     month: 'short',
@@ -1024,11 +1080,17 @@ const styles = StyleSheet.create({
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   reviewMeta: {
     flex: 1,
+  },
+  gameTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#667eea',
+    marginBottom: 4,
   },
   reviewDate: {
     fontSize: 12,
@@ -1191,5 +1253,3 @@ const styles = StyleSheet.create({
   },
   
 });
-
-
