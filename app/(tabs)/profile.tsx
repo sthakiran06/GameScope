@@ -221,7 +221,7 @@ export default function ProfileScreen() {
   };
 
 
-  // Updates the user's display name
+  // Updates the user's display name and all associated reviews
   const updateName = async (): Promise<void> => {
     // Input validation
     const trimmedName = newName.trim();
@@ -244,7 +244,49 @@ export default function ProfileScreen() {
     setLoadingState(prev => ({ ...prev, updatingName: true }));
     
     try {
+      // Update user account name
       await account.updateName(trimmedName);
+      
+      // Update userName in all existing reviews
+      if (user?.$id) {
+        try {
+          // Fetch all reviews by this user
+          const userReviews = await databases.listDocuments(
+            DATABASE_ID,
+            REVIEWS_COLLECTION_ID,
+            [Query.equal('userId', user.$id)]
+          );
+          
+          // Update each review's userName field
+          const updatePromises = userReviews.documents.map(review => 
+            databases.updateDocument(
+              DATABASE_ID,
+              REVIEWS_COLLECTION_ID,
+              review.$id,
+              { userName: trimmedName }
+            )
+          );
+          
+          await Promise.all(updatePromises);
+          
+          // Update local reviews state to reflect the new name
+          setReviews(prevReviews => 
+            prevReviews.map(review => ({
+              ...review,
+              userName: review.userId === user.$id ? trimmedName : review.userName
+            }))
+          );
+          
+          console.log(`Updated ${userReviews.documents.length} reviews with new name`);
+        } catch (reviewUpdateError) {
+          console.error('Failed to update reviews with new name:', reviewUpdateError);
+          // Don't fail the entire operation if review updates fail
+          Alert.alert(
+            'Partial Update', 
+            'Your name was updated, but some reviews may still show the old name. They will be updated gradually.'
+          );
+        }
+      }
       
       // Update local user state
       setUser((prev: User | null) => prev ? { ...prev, name: trimmedName } : null);

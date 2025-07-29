@@ -1,6 +1,8 @@
 import { account, databases } from '@/lib/appwrite';
 import { useLocalSearchParams } from 'expo-router';
 import { JSX, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -417,6 +419,23 @@ export default function GameDetailScreen(): JSX.Element {
     
     initializeData();
   }, [id]);
+
+  /**
+   * Focus effect to refresh reviews when screen comes into focus
+   * This ensures reviews show updated user names when navigating back
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const refreshReviewsOnFocus = async () => {
+        if (validateGameId(id) && !loading) {
+          // Only fetch reviews if we have a valid game ID and aren't in initial loading
+          await fetchReviews();
+        }
+      };
+
+      refreshReviewsOnFocus();
+    }, [id, loading])
+  );
 
   /**
    * Loading State Component
